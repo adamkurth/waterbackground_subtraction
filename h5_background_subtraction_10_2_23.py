@@ -184,6 +184,7 @@ def create_scatter(x, y, z, highlight_x=None, highlight_y=None):
 
 
 if __name__ == "__main__":
+    
     load_file_h5()
     image_array = None
     image = h5.File(filename, "r") 
