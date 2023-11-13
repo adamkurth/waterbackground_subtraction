@@ -3,22 +3,9 @@ import os
 import sys
 import numpy as np
 import h5py as h5
-from os.path import basename, splitext
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-
-# import overwrite_10_2_23 as overwrite
-
-# #argument runnig script through term
-# if sys.argv[1] == '-':
-#     stream = sys.stdin
-# else:
-#     stream = open(sys.argv[1], 'r')
-
-################################    
-def load_file_h5():
-    global filename
-    filename =  "test_manipulate2HDF5.h5"
+  
+def load_file_h5(filename):
     #if filename is not within working directory
     if not os.path.exists(filename):
         print("File not found within working directory.")
@@ -29,7 +16,6 @@ def load_file_h5():
     except Exception as e:
         print("\nAn error has occurred:", str(e))
  
-        
 class PeakThresholdProcessor: 
     #self method
     def __init__(self, image_array, threshold_value=0):
@@ -83,7 +69,6 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
         if choice == "q":
             print("Exiting")
             break
-        
         try: 
             count = int(choice)-1
             if 0 <= count < len(coordinates):
@@ -101,8 +86,6 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
                 segment = extract_region(image_array, region_size=radius, x_center=x, y_center=y)
                 print ('SEGMENT \n', segment, '\n')
                 
-                # COMMENTED OUT FOR NOW, EASE OF TESTING
-
                 #returns boolean array of traversed values.
                 bool_square = np.zeros_like(segment, dtype=bool)
                 print('BOOLEAN: before traversing.', '\n', bool_square, '\n') 
@@ -149,14 +132,11 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
         except ValueError:
             print("Invalid input. Enter a number of 'q' to quit.")
 
-################################## 
-
 def load_stream(stream_path):
     global stream_coord
     global result_x, result_y, result_z #for building intensity array
     
     stream_name = os.path.basename(stream_path)
-    # directory_path = f'{stream_path}'
     full_path = os.path.join(stream_path)
     
     try:
@@ -218,53 +198,6 @@ def load_stream(stream_path):
             reading_chunks = True   
     result_x = data_columns['fs']; result_y = data_columns['ss']; result_z = data_columns['I']
     return data_columns, result_x, result_y, result_z
-    
-def build_coord_intensity_array():
-    coordinates_and_intensities = data_columns['fs','ss','I']
-    return coordinates_and_intensities
-
-# def create_scatter(x, y, z, highlight_x=None, highlight_y=None):
-#     fig = plt.figure()
-#     ax = fig.add_subplot(111, projection="3d")
-#     # data_columns = build_coord_intensity_array()
-#     scatter = ax.scatter(coordinates[:, 0], coordinates[:, 1], z, c=z, cmap='viridis', marker='o')
-
-#     highlight_z = intensity_array[highlight_x,highlight_y]
-#     print("Intensity value", highlight_z, "\n")
-#     # Highlight the specific point if provided
-#     if highlight_x is not None and highlight_y is not None:
-#         ax.scatter([highlight_x], [highlight_y], [highlight_z], c='red', marker='x', s=100, label='Highlighted Point')
-
-#     cbar = plt.colorbar(scatter)
-#     cbar.set_label('Intensity')
-    
-#     # Set labels and title
-#     ax.set_xlabel('X Coordinate')
-#     ax.set_ylabel('Y Coordinate')
-#     ax.set_zlabel('Intensity')
-#     plt.title('3D Scatter Plot of (X, Y, Intensity)')
-#     plt.show()
-#     return None
-
-def read_hdf5(filename, location):
-    try:
-        with h5.File(filename, "r") as f:
-            if '/data/data/' + location in f: 
-                dset = f['/data/data/'+location][()]
-                global image_array
-                image_array = np.array(dset)
-                image_array_size = image_array.shape
-                print("Shape of the array:", image_array_size)
-                print(image_array)
-                f.close()
-                return image_array
-            else:
-                print("Dataset not found in location", location)
-                return None
-    except FileNotFoundError as e:
-        print("Error HDF5 file not found.", e)
-    except Exception as e:
-        print("An error has occured.", e)
    
 def main(stream_path):
     # read the stream
@@ -285,45 +218,34 @@ def main(stream_path):
     #do not need to constantly write the same intensity values to the same array.
     # write_hdf5(filename=stream_name, data=intensity_array)
 
-    location = "intensity_array"
-    # read_hdf5(filename=stream_name, location=location)
+    ############## 3 RING INTEGRATION ################
     threshold = PeakThresholdProcessor(intensity_array, threshold_value=10000)
     print ("Original threshold value: ", threshold.threshold_value, "\n")
     global coordinates
     coordinates = threshold.get_coordinates_above_threshold()
-
-    radius0 = 1; radius1=2; radius2=3; radius3=4
+    
+    radius = [1,2,3,4]
     completed = False
     while not completed:
-        threshold = PeakThresholdProcessor(intensity_array, threshold_value=9000)
-        coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius0)
-        intensity = intensity_peak; avg = avg_values
-        spot_estimate_peak = intensity - avg    
-        coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius1)
-        intensity = intensity_peak; avg = avg_values
-        spot_estimate_peak = intensity - avg    
-        print("Peak Estimate for ring 1:", spot_estimate_peak, 'with radius of', radius1)
-        coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
-        intensity = intensity_peak; avg = avg_values
-        spot_estimate_peak = intensity - avg    
-        print("Peak Estimate for ring 2:", spot_estimate_peak, 'with radius of', radius2)    
-        coordinate_menu(intensity_array, threshold_value=threshold.threshold_value, coordinates=coordinates, radius=radius2)
-        intensity = intensity_peak; avg = avg_values
-        spot_estimate_peak = intensity - avg    
-        print("Peak Estimate for ring 3:", spot_estimate_peak, 'with radius of', radius3)
-        completed = True   
+        for r in radius:
+            threshold = PeakThresholdProcessor(intensity_array, threshold_value=9000)
+            coordinate_menu(intensity_array, threshold.threshold_value, coordinates, radius=r)
+            intensity = intensity_peak; avg = avg_values
+            spot_estimate_peak = intensity - avg
+            print("Peak Estimate for ring", r, ":", spot_estimate_peak, 'with radius of', r)
+        completed = True
 
-######################################
 if __name__ == "__main__":
     print(os.getcwd())
     stream_path = os.path.join(os.getcwd(), "high_low_stream", "test_high.stream")
     # call for high stream 
+    print('For high stream: \n')
     main(stream_path)
     
-    # call for low stream
-    stream_path = os.path.join(os.getcwd(),"high_low_stream", "test_low.stream")
-    # call for high stream 
-    main(stream_path)
+    # stream_path = os.path.join(os.getcwd(),"high_low_stream", "test_low.stream")
+    # # call for low stream 
+    # print('For low stream: \n')
+    # main(stream_path)
 
 
 
