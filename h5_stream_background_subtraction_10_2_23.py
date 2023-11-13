@@ -151,14 +151,17 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
 
 ################################## 
 
-def load_stream():
-    global stream_name; global stream_coord
+def load_stream(stream_path):
+    global stream_coord
     global result_x, result_y, result_z #for building intensity array
-
-    stream_name = "test_high_copy.stream"
-    # MAKE SURE YOUR RUNNING THIS SCRIPT IN THE DIRECTORY OF THE STREAM FILE. 
+    
+    stream_name = os.path.basename(stream_path)
+    # directory_path = f'{stream_path}'
+    full_path = os.path.join(stream_path)
+    
     try:
-        stream = open(stream_name, 'r') 
+        
+        stream = open(full_path, 'r') 
         print("\nLoaded file successfully.", stream_name, '\n')
     except Exception as e: 
         print("\nAn error has occurred:", str(e),'\n')
@@ -220,28 +223,28 @@ def build_coord_intensity_array():
     coordinates_and_intensities = data_columns['fs','ss','I']
     return coordinates_and_intensities
 
-def create_scatter(x, y, z, highlight_x=None, highlight_y=None):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    # data_columns = build_coord_intensity_array()
-    scatter = ax.scatter(coordinates[:, 0], coordinates[:, 1], z, c=z, cmap='viridis', marker='o')
+# def create_scatter(x, y, z, highlight_x=None, highlight_y=None):
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111, projection="3d")
+#     # data_columns = build_coord_intensity_array()
+#     scatter = ax.scatter(coordinates[:, 0], coordinates[:, 1], z, c=z, cmap='viridis', marker='o')
 
-    highlight_z = intensity_array[highlight_x,highlight_y]
-    print("Intensity value", highlight_z, "\n")
-    # Highlight the specific point if provided
-    if highlight_x is not None and highlight_y is not None:
-        ax.scatter([highlight_x], [highlight_y], [highlight_z], c='red', marker='x', s=100, label='Highlighted Point')
+#     highlight_z = intensity_array[highlight_x,highlight_y]
+#     print("Intensity value", highlight_z, "\n")
+#     # Highlight the specific point if provided
+#     if highlight_x is not None and highlight_y is not None:
+#         ax.scatter([highlight_x], [highlight_y], [highlight_z], c='red', marker='x', s=100, label='Highlighted Point')
 
-    cbar = plt.colorbar(scatter)
-    cbar.set_label('Intensity')
+#     cbar = plt.colorbar(scatter)
+#     cbar.set_label('Intensity')
     
-    # Set labels and title
-    ax.set_xlabel('X Coordinate')
-    ax.set_ylabel('Y Coordinate')
-    ax.set_zlabel('Intensity')
-    plt.title('3D Scatter Plot of (X, Y, Intensity)')
-    plt.show()
-    return None
+#     # Set labels and title
+#     ax.set_xlabel('X Coordinate')
+#     ax.set_ylabel('Y Coordinate')
+#     ax.set_zlabel('Intensity')
+#     plt.title('3D Scatter Plot of (X, Y, Intensity)')
+#     plt.show()
+#     return None
 
 def read_hdf5(filename, location):
     try:
@@ -263,15 +266,9 @@ def read_hdf5(filename, location):
     except Exception as e:
         print("An error has occured.", e)
    
-
-# def write_hdf5(filename, data, dataset_name="/data/data/intensity_data"):
-#     # WRITES HDF5 FILE
-#     with h5.File(filename+'-HDF5.h5', 'w') as f:
-#         dset = f.create_dataset(dataset_name, data=data)
-         
-######################################
-if __name__ == "__main__":
-    load_stream()
+def main(stream_path):
+    # read the stream
+    load_stream(stream_path)
     xmin, xmax = np.min(result_x), np.max(result_x)
     ymin, ymax = np.min(result_y), np.max(result_y)
 
@@ -315,6 +312,18 @@ if __name__ == "__main__":
         spot_estimate_peak = intensity - avg    
         print("Peak Estimate for ring 3:", spot_estimate_peak, 'with radius of', radius3)
         completed = True   
+
+######################################
+if __name__ == "__main__":
+    print(os.getcwd())
+    stream_path = os.path.join(os.getcwd(), "high_low_stream", "test_high.stream")
+    # call for high stream 
+    main(stream_path)
+    
+    # call for low stream
+    stream_path = os.path.join(os.getcwd(),"high_low_stream", "test_low.stream")
+    # call for high stream 
+    main(stream_path)
 
 
 
