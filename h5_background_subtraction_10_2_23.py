@@ -4,31 +4,18 @@ import numpy as np
 import h5py as h5
 import matplotlib.pyplot as plt
 
-def load_file_h5(filename):
-    #if filename is not within working directory
-    if not os.path.exists(filename):
-        print("File not found within working directory.")
-        return
-    try:
-        with h5.File(filename, "r") as f: 
-            print("\nLoaded file successfully.", filename)
-    except Exception as e:
-        print("\nAn error has occurred:", str(e))
-               
-        
 class PeakThresholdProcessor: 
     #self method
-    def __init__(self, array, threshold_value=0):
-        self.array = array
+    def __init__(self, image_array, threshold_value=0):
+        self.image_array = image_array
         self.threshold_value = threshold_value
     #setter for threshold value
     def set_threshold_value(self, new_threshold_value):
         self.threshold_value = new_threshold_value
     #getter for for above threshold
     def get_coordinates_above_threshold(self):  
-        coordinates = np.argwhere(self.array > self.threshold_value)
+        coordinates = np.argwhere(self.image_array > self.threshold_value)
         return coordinates
-    
 class ArrayRegion:
     def __init__(self, array):
         self.array = array
@@ -48,7 +35,18 @@ class ArrayRegion:
         y_range = slice(self.y_center - self.region_size, self.y_center + self.region_size+1)
         region = self.array[x_range, y_range]
         return region
-   
+    
+def load_file_h5(filename):
+    #if filename is not within working directory
+    if not os.path.exists(filename):
+        print("File not found within working directory.")
+        return
+    try:
+        with h5.File(filename, "r") as f: 
+            print("\nLoaded file successfully.", filename)
+    except Exception as e:
+        print("\nAn error has occurred:", str(e))
+               
 def extract_region(image_array, region_size, x_center, y_center):
     extract = ArrayRegion(image_array)
     extract.set_peak_coordinate(x_center,y_center)
@@ -202,6 +200,9 @@ def main(filename):
     
 if __name__ == "__main__":
     print(os.getcwd())
-    image_path = os.path.join(os.getcwd(), "images", "9_18_23_high_intensity_3e8keV-1_test.h5")
+    # image_path = os.path.join(os.getcwd(), "images", "9_18_23_high_intensity_3e8keV-2.h5")
     # view sim image
-    main(image_path)
+    # main(image_path)
+    
+    image_path = os.path.join(os.getcwd(), "images", "9_18_23_low_intensity_3e7keV-2.h5")
+    # main(image_path)
