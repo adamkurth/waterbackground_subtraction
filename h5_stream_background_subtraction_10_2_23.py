@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import h5py as h5
 import matplotlib.pyplot as plt
+ 
   
 def load_file_h5(filename):
     #if filename is not within working directory
@@ -16,18 +17,6 @@ def load_file_h5(filename):
     except Exception as e:
         print("\nAn error has occurred:", str(e))
  
-class PeakThresholdProcessor: 
-    #self method
-    def __init__(self, image_array, threshold_value=0):
-        self.image_array = image_array
-        self.threshold_value = threshold_value
-    #setter for threshold value
-    def set_threshold_value(self, new_threshold_value):
-        self.threshold_value = new_threshold_value
-    #getter for for above threshold
-    def get_coordinates_above_threshold(self):  
-        coordinates = np.argwhere(self.image_array > self.threshold_value)
-        return coordinates
  
 def extract_region(image_array, region_size, x_center, y_center):
     extract = ArrayRegion(image_array)
