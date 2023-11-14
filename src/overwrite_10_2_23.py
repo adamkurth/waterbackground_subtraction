@@ -230,7 +230,6 @@ def main():
         print(f"Completed coordinate menu for radius {r}")
         completed = True
         
-    
 if __name__ == '__main__':           
     main() 
 
