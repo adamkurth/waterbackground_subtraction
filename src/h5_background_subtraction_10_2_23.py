@@ -1,45 +1,17 @@
-#!/usr/bin/env python
 import os
-import sys
 import numpy as np
 import h5py as h5
 import matplotlib.pyplot as plt
 
-wd = os.getcwd()
-print('\nWorking directory: ', wd)
-
-def load_file_h5():
-    global filename
-    #filename = input("Please enter an HDF5 filename to load: ")
-    #FOR NOW
-    filename = "DATASET1_8_16_23-1.h5"
-    
-    #if filename is not within working directory
-    if not os.path.exists(filename):
-        print("File not found within working directory.")
-        return
-    
-    #loading filename as h5 image
-    try:
-        with h5.File(filename, "r") as f: 
-            print("\nLoaded file successfully.", filename)
-    except Exception as e:
-        print("\nAn error has occurred:", str(e))
-               
-        
 class PeakThresholdProcessor: 
-    #self method
-    def __init__(self, array, threshold_value=0):
-        self.array = array
+    def __init__(self, image_array, threshold_value=0):
+        self.image_array = image_array
         self.threshold_value = threshold_value
-    #setter for threshold value
     def set_threshold_value(self, new_threshold_value):
         self.threshold_value = new_threshold_value
-    #getter for for above threshold
     def get_coordinates_above_threshold(self):  
-        coordinates = np.argwhere(self.array > self.threshold_value)
+        coordinates = np.argwhere(self.image_array > self.threshold_value)
         return coordinates
-    
 class ArrayRegion:
     def __init__(self, array):
         self.array = array
@@ -59,7 +31,17 @@ class ArrayRegion:
         y_range = slice(self.y_center - self.region_size, self.y_center + self.region_size+1)
         region = self.array[x_range, y_range]
         return region
-   
+    
+def load_file_h5(filename):
+    if not os.path.exists(filename):
+        print("File not found within working directory.")
+        return
+    try:
+        with h5.File(filename, "r") as f: 
+            print("\nLoaded file successfully.", filename)
+    except Exception as e:
+        print("\nAn error has occurred:", str(e))
+               
 def extract_region(image_array, region_size, x_center, y_center):
     extract = ArrayRegion(image_array)
     extract.set_peak_coordinate(x_center,y_center)
@@ -94,7 +76,6 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
                 segment = extract_region(image_array, region_size=radius, x_center=x, y_center=y)
                 print ('SEGMENT \n', segment, '\n')
                 
-                    
                 #returns boolean array of traversed values.
                 bool_square = np.zeros_like(segment, dtype=bool)
                 print('BOOLEAN', '\n', bool_square, '\n') 
@@ -103,7 +84,6 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
                 
                 global avg_values, intensity_peak
                 total_sum = 0; skipped_point = None; count = 0; intensity_peak = 0
-                #traverses through (i = row) , (j = column)
                 for col_index in range(values_array.shape[0]):
                     for row_index in range(values_array.shape[1]):
                         if values_array[row_index, col_index] >= 0:
@@ -113,6 +93,9 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
                                 skipped_point = (row_index, col_index)  
                                 intensity_peak = values_array[row_index, col_index]
                                 print(f'Peak point to be skipped: ({row_index}, {col_index}) ', values_array[radius,radius])
+                            elif abs(row_index - radius) <= 1 and abs(col_index - radius) <=1:
+                                print(f'Passed (row, col) ({row_index}, {col_index})', values_array[row_index,col_index])
+                                pass
                             else:
                                 print(f'(row,col) ({row_index}, {col_index}) with a value of ', values_array[row_index, col_index])
                                 total_sum += values_array[row_index, col_index]
@@ -125,6 +108,7 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
                 print('Average surrounding peak:',avg_values)
                 
                 build_coord_intensity()
+                
                 create_scatter(result_x, result_y, result_z, highlight_x=x, highlight_y=y)
                 return avg_values,intensity_peak
                 break
@@ -170,7 +154,6 @@ def create_scatter(x, y, z, highlight_x=None, highlight_y=None):
     cbar = plt.colorbar(scatter)
     cbar.set_label('Intensity')
     
-    # Set labels and title
     ax.set_xlabel('X Coordinate')
     ax.set_ylabel('Y Coordinate')
     ax.set_zlabel('Intensity')
@@ -178,52 +161,44 @@ def create_scatter(x, y, z, highlight_x=None, highlight_y=None):
     plt.show()
     return None
 
-#traverses the array called segment (already with radius defined)
-#creates array of false values, makes them true in traversing to ensure we are accumulating values properly.
-
-
-if __name__ == "__main__":
-    # testing on DATASET1_8_16_23-1.h5
-    load_file_h5()
+def main(filename):
+    load_file_h5(filename)
+    global image_array
     image_array = None
- 
-    #reading input h5 file for dataset1
     image = h5.File(filename, "r") 
     image_array = None
     with h5.File(filename, "r") as f:
-        #prints <HDF5 dataset "data": shape (4371, 4150), type "<f4">
         dset = image["entry/data/data"][()]     #returns np array of (4371,4150) of 0's
         image_array = np.array(dset)
         image_array_size = dset.shape
-        image.close
+        image.close()
         
-        
- 
-###
-threshold = PeakThresholdProcessor(image_array, threshold_value=1000)
-print ("Original threshold value: ", threshold.threshold_value, "\n")
-global coordinates
-coordinates = threshold.get_coordinates_above_threshold()
+    ############## 3 RING INTEGRATION ################
+    
+    threshold = PeakThresholdProcessor(image_array, threshold_value=1000)
+    print ("Original threshold value: ", threshold.threshold_value, "\n")
+    global coordinates
+    coordinates = threshold.get_coordinates_above_threshold()
 
-######start 3 ring integration
-
-radius0=1; radius1=2; radius2=3; radius3=4; completed = False
-
-build_coord_intensity()
-
-while not completed:
-    coordinate_menu(image_array, 1000, coordinates, radius0)
-    intensity = intensity_peak; 
-    coordinate_menu(image_array, 1000, coordinates, radius1)
-    intensity = intensity_peak; avg = avg_values
-    spot_estimate_peak1 = intensity - avg    
-    print("Peak Estimate for ring 1:", spot_estimate_peak1, 'with radius of', radius1)
-    coordinate_menu(image_array, 1000, coordinates, radius2)
-    intensity = intensity_peak; avg = avg_values
-    spot_estimate_peak2 = intensity - avg    
-    print("Peak Estimate for ring 2:", spot_estimate_peak2, 'with radius of', radius2)    
-    coordinate_menu(image_array, 1000, coordinates, radius3)
-    intensity = intensity_peak; avg = avg_values
-    spot_estimate_peak3 = intensity - avg    
-    print("Peak Estimate for ring 3:", spot_estimate_peak3, 'with radius of', radius3)
-    completed = True
+    radius = [1,2,3,4]
+    completed = False
+    build_coord_intensity()
+    while not completed:
+        for r in radius:
+            coordinate_menu(image_array, 1000, coordinates, r)
+            intensity = intensity_peak; avg = avg_values
+            spot_estimate_peak = intensity - avg
+            print("Peak Estimate for ring", r, ":", spot_estimate_peak, 'with radius of', r)
+        completed = True
+    
+if __name__ == "__main__":
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    parent_dir = os.path.dirname(script_dir)
+    images_dir = os.path.join(parent_dir, "images")
+    print("Working directory:", images_dir)
+    image_path1 = os.path.join(images_dir, "9_18_23_high_intensity_3e8keV-2.h5")
+    print(image_path1)
+    image_path2 = os.path.join(images_dir, "9_18_23_low_intensity_3e7keV-2.h5")
+    main(image_path1)
+    # main(image_path2)
+    

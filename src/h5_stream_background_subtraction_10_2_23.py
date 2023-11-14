@@ -1,18 +1,15 @@
-#!/usr/bin/env python
 import os
+import sys
 import numpy as np
 import h5py as h5
 import matplotlib.pyplot as plt
-
+ 
 class PeakThresholdProcessor: 
-    #self method
     def __init__(self, image_array, threshold_value=0):
         self.image_array = image_array
         self.threshold_value = threshold_value
-    #setter for threshold value
     def set_threshold_value(self, new_threshold_value):
         self.threshold_value = new_threshold_value
-    #getter for for above threshold
     def get_coordinates_above_threshold(self):  
         coordinates = np.argwhere(self.image_array > self.threshold_value)
         return coordinates
@@ -23,10 +20,10 @@ class ArrayRegion:
         self.y_center = 0
         self.region_size = 0
     def set_peak_coordinate(self, x, y):
-        self.x_center = x
-        self.y_center = y
+            self.x_center = x
+            self.y_center = y
     def set_region_size(self, size):
-        #limit that is printable in terminal
+        # set limit that is printable in terminal
         self.region_size = size
         max_printable_region = min(self.array.shape[0], self.array.shape[1]) //2
         self.region_size = min(size, max_printable_region)
@@ -35,9 +32,8 @@ class ArrayRegion:
         y_range = slice(self.y_center - self.region_size, self.y_center + self.region_size+1)
         region = self.array[x_range, y_range]
         return region
-    
+
 def load_file_h5(filename):
-    #if filename is not within working directory
     if not os.path.exists(filename):
         print("File not found within working directory.")
         return
@@ -46,7 +42,7 @@ def load_file_h5(filename):
             print("\nLoaded file successfully.", filename)
     except Exception as e:
         print("\nAn error has occurred:", str(e))
-               
+ 
 def extract_region(image_array, region_size, x_center, y_center):
     extract = ArrayRegion(image_array)
     extract.set_peak_coordinate(x_center,y_center)
@@ -54,13 +50,13 @@ def extract_region(image_array, region_size, x_center, y_center):
     np.set_printoptions(floatmode='fixed', precision=10)
     np.set_printoptions(edgeitems=3, suppress=True, linewidth=200)
     region = extract.get_region()
-    return region        
+    return region      
     
 def coordinate_menu(image_array, threshold_value, coordinates, radius): 
     print("\nCoordinates above given threshold:", threshold_value, 'with radius: ', radius)
     for i, (x, y) in enumerate(coordinates):
         print(f"{i + 1}. ({x}, {y})")
-    
+        
     while True:
         choice = input("\nWhich coordinate do you want to process? (or 'q' to quit)\n")
         if choice == "q":
@@ -73,23 +69,27 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
                 print(f"\nProcessing - ({x}, {y})")
                 print('Printing 9x9 two-dimensional array\n')
                 
-                #creates visualization if the array, of chosen peak
+                # creates visualization if the array, of chosen peak
+                print(x,y)
                 display_region = extract_region(image_array, region_size=4, x_center=x, y_center=y)
+                
                 print('DISPLAY REGION \n', display_region, '\n')
                 
-                #segment is the area with the given radius that's passed through the function.
+                # segment is the area with the given radius that's passed through the function.
                 segment = extract_region(image_array, region_size=radius, x_center=x, y_center=y)
                 print ('SEGMENT \n', segment, '\n')
                 
-                #returns boolean array of traversed values.
+                # returns boolean array of traversed values.
                 bool_square = np.zeros_like(segment, dtype=bool)
-                print('BOOLEAN', '\n', bool_square, '\n') 
-
+                print('BOOLEAN: before traversing.', '\n', bool_square, '\n') 
+            
+                """ 3 RING INTEGRATION """
                 values_array = extract_region(image_array, region_size=radius, x_center=x, y_center=y)
                 
+                #traverses through (i = row) , (j = column)         
+
                 global avg_values, intensity_peak
                 total_sum = 0; skipped_point = None; count = 0; intensity_peak = 0
-                #traverses through (i = row) , (j = column)
                 for col_index in range(values_array.shape[0]):
                     for row_index in range(values_array.shape[1]):
                         if values_array[row_index, col_index] >= 0:
@@ -110,12 +110,12 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
                 print('Number of traversed cells', count)
                 print('Peak point to be skipped:', skipped_point)
                 print('Total sum:',total_sum)
-                avg_values = total_sum / count
+                if count > 0:
+                    avg_values = total_sum / count
+                else: 
+                    avg_values = "Could not divide by 0."
                 print('Average surrounding peak:',avg_values)
-                
-                build_coord_intensity()
-                
-                create_scatter(result_x, result_y, result_z, highlight_x=x, highlight_y=y)
+                print('Peak point:', intensity_peak)
                 return avg_values,intensity_peak
                 break
             else: 
@@ -123,86 +123,114 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
         except ValueError:
             print("Invalid input. Enter a number of 'q' to quit.")
 
-def build_coord_intensity():
-    global result_x, result_y, result_z, coordinates_and_intensities
-    result_z = []
-    threshold = PeakThresholdProcessor(image_array, threshold_value=.01)
-    coord_above_threshold = threshold.get_coordinates_above_threshold()
-    coord_above_threshold = np.array(coord_above_threshold)
+def load_stream(stream_path):
+    global stream_coord
+    global result_x, result_y, result_z #for building intensity array
+    stream_name = os.path.basename(stream_path)
+    full_path = os.path.join(stream_path)
     
-    for i in coord_above_threshold: 
-        result_x = coord_above_threshold[:,0]
-        result_y = coord_above_threshold[:,1]
-    
-    result_x = np.array(result_x)
-    result_y = np.array(result_y)
-    
-    for i in range(len(coord_above_threshold)):
-        x = result_x[i]
-        y = result_y[i]
-        z = image_array[x,y]
-        result_z.append(z)
-    # creating a coordinate and intensity array to store the values we want to plot.
-    coordinates_and_intensities = np.column_stack((result_x, result_y, result_z))
-    return result_x, result_y, result_z, coordinates_and_intensities
-
-def create_scatter(x, y, z, highlight_x=None, highlight_y=None):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    scatter = ax.scatter(coordinates_and_intensities[:, 0], coordinates_and_intensities[:, 1], coordinates_and_intensities[:,2], c=z, cmap='viridis', marker='o')
-
-    highlight_z = image_array[highlight_x,highlight_y]
-    print("Intensity value", highlight_z, "\n")
-    # Highlight the specific point if provided
-    if highlight_x is not None and highlight_y is not None:
-        ax.scatter([highlight_x], [highlight_y], [highlight_z], c='red', marker='x', s=100, label='Highlighted Point')
-
-    cbar = plt.colorbar(scatter)
-    cbar.set_label('Intensity')
-    
-    # Set labels and title
-    ax.set_xlabel('X Coordinate')
-    ax.set_ylabel('Y Coordinate')
-    ax.set_zlabel('Intensity')
-    plt.title('3D Scatter Plot of (X, Y, Intensity)')
-    plt.show()
-    return None
-
-def main(filename):
-    load_file_h5(filename)
-    global image_array
-    image_array = None
-    image = h5.File(filename, "r") 
-    image_array = None
-    with h5.File(filename, "r") as f:
-        dset = image["entry/data/data"][()]     #returns np array of (4371,4150) of 0's
-        image_array = np.array(dset)
-        image_array_size = dset.shape
-        image.close()
+    try:
         
-    ############## 3 RING INTEGRATION ################
+        stream = open(full_path, 'r') 
+        print("\nLoaded file successfully.", stream_name, '\n')
+    except Exception as e: 
+        print("\nAn error has occurred:", str(e),'\n')
     
-    threshold = PeakThresholdProcessor(image_array, threshold_value=1000)
+    reading_peaks = False
+    reading_geometry = False
+    reading_chunks = True 
+    global data_columns
+    data_columns = {
+        'h':[], 'k':[], 'l':[],
+        'I':[], 'sigmaI':[], 'peak':[], 'background':[],
+        'fs':[],'ss':[], 'panel':[]
+        }
+    
+    for line in stream:
+        if reading_chunks:
+           if line.startswith('End of peak list'):
+               reading_peaks = False
+           elif line.startswith("   h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel"):
+               reading_peaks = True
+           elif reading_peaks:
+                try:
+                    elements = line.split()
+                    data_columns['h'].append(int(elements[0]))
+                    data_columns['k'].append(int(elements[1]))
+                    data_columns['l'].append(int(elements[2]))
+                    data_columns['I'].append(float(elements[3]))
+                    data_columns['sigmaI'].append(float(elements[4]))
+                    data_columns['peak'].append(float(elements[5]))
+                    data_columns['background'].append(float(elements[6]))
+                    data_columns['fs'].append(float(elements[7]))
+                    data_columns['ss'].append(float(elements[8]))
+                    data_columns['panel'].append(str(elements[9]))
+                except:
+                    pass
+        elif line.startswith('----- End geometry file -----'):
+            reading_geometry = False
+        elif reading_geometry:   
+            try:
+                par, val = line.split('=')
+                if par.split('/')[-1].strip() == 'max_fs' and int(val) > max_fs:
+                    max_fs = int(val)
+                elif par.split('/')[-1].strip() == 'max_ss' and int(val) > max_ss:
+                    max_ss = int(val)
+            except ValueError:
+                pass
+        elif line.startswith('----- Begin geometry file -----'):
+            reading_geometry = True
+        elif line.startswith('----- Begin chunk -----'):
+            reading_chunks = True   
+    result_x = data_columns['fs']; result_y = data_columns['ss']; result_z = data_columns['I']
+    return data_columns, result_x, result_y, result_z
+   
+def main(stream_path):
+    load_stream(stream_path)
+    xmin, xmax = np.min(result_x), np.max(result_x)
+    ymin, ymax = np.min(result_y), np.max(result_y)
+
+    num_rows = int(xmax-xmin+1)
+    num_cols = int(ymax-ymin+1)
+    print(num_rows, num_cols)
+    intensity_array = np.zeros((num_rows,num_cols))
+
+    for x,y,z in zip(result_x,result_y,result_z):
+        row = int(x - xmin)
+        col = int(y - ymin)
+        intensity_array[row,col] = z
+
+    """ 3 RING INTEGRATION """
+    
+    threshold = PeakThresholdProcessor(intensity_array, threshold_value=10000)
     print ("Original threshold value: ", threshold.threshold_value, "\n")
     global coordinates
     coordinates = threshold.get_coordinates_above_threshold()
-
+    
     radius = [1,2,3,4]
     completed = False
-    build_coord_intensity()
     while not completed:
         for r in radius:
-            coordinate_menu(image_array, 1000, coordinates, r)
+            threshold = PeakThresholdProcessor(intensity_array, threshold_value=9000)
+            coordinate_menu(intensity_array, threshold.threshold_value, coordinates, radius=r)
             intensity = intensity_peak; avg = avg_values
             spot_estimate_peak = intensity - avg
             print("Peak Estimate for ring", r, ":", spot_estimate_peak, 'with radius of', r)
         completed = True
-    
+
 if __name__ == "__main__":
-    print(os.getcwd())
-    # image_path = os.path.join(os.getcwd(), "images", "9_18_23_high_intensity_3e8keV-2.h5")
-    # view sim image
-    # main(image_path)
-    
-    image_path = os.path.join(os.getcwd(), "images", "9_18_23_low_intensity_3e7keV-2.h5")
-    # main(image_path)
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    parent_dir = os.path.dirname(script_dir)
+    stream_dir = os.path.join(parent_dir, "high_low_stream")
+    print("Working directory:", stream_dir)
+    stream_path1 = os.path.join(stream_dir, "test_high.stream")
+    main(stream_path1)
+    stream_path2 = os.path.join(stream_dir, "test_low.stream")
+    # main(stream_path2)
+
+
+
+
+
+
+
