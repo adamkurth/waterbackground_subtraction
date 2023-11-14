@@ -45,8 +45,26 @@ This repository is dedicated to the implementation of a project focused on backg
 
     - Execution: If the script is run as the main program, it sets the working directory to the parent directory of the script's location, then calls the main function with two different stream files.
 
+- **`/src/overwrite_10_2_23.py`**: This script requires the os, shutil, numpy, h5py, and h5_stream_background_subtraction_10_2_23 (as streampy) modules. Designed to process and manipulate stream data files. It includes functionality for loading stream data, comparing high and low data, overwriting low data in high stream file, finding intensity values for each x,y coordinate in an image, and populating an intensity array with these values.
+  
+- Functions: many of the same functions are used from the previous two scripts for overwrite script.
+    - `load_stream(stream_name)`: This function loads a stream file and parses the data into a dictionary.
+    - `duplicate_before_overwrite(filename)`: This function creates a copy of a file before it is overwritten.
+    - `compare_high_low(high_data, low_data, *columns)`: This function compares high and low data for specified columns.
+    - `retrieve(data_columns, *args)`: This function retrieves specified columns from the data.
+    - `overwrite_low_in_high(filename, overwrite_data)`: This function overwrites the low data in the high stream file with the given overwrite data.
+    - `intensity_finder(x_coords, y_coords, image_name)`: This function retrieves the intensity values for every x,y coordinate in the image.
+    - `populate_intensity_array(data_columns, image_name)`: This function populates an intensity array with the intensity values for each x,y coordinate.
+  - Main Function
+  
+The `main()` function orchestrates the execution of the script. It loads high and low stream data, compares them, overwrites the low data in the high stream file, finds intensity values for each x,y coordinate in an image, populates an intensity array with these values, and performs threshold processing on the intensity array.
 
+Usage
+To use this script, you need to have two stream files (high and low) and an image file in the '.h5' format. The script will process these files and output the results. The main function can be modified to suit your specific needs.
 
+```{python}
+    if __name__ == '__main__':           
+        main() 
+```
 
-
-- **`project_2.ipynb`**: This Jupyter notebook is the heart of the project. It contains the main analysis for the project, including data loading where the data necessary for the project is loaded, data cleaning where the loaded data is cleaned and preprocessed, exploratory data analysis where the cleaned data is analyzed to gain insights, model building where a model is built based on the insights gained, and evaluation where the built model is evaluated to measure its performance.
+- **`project_2.ipynb`**: This Jupyter notebook is a further explanation of the project. It contains the main analysis for the project, including data loading where the data necessary for the project is loaded, data cleaning where the loaded data is cleaned and preprocessed, exploratory data analysis where the cleaned data is analyzed to gain insights, model building where a model is built based on the insights gained, and evaluation where the built model is evaluated to measure its performance.
