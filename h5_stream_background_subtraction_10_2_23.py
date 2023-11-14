@@ -214,11 +214,9 @@ def main(stream_path):
         row = int(x - xmin)
         col = int(y - ymin)
         intensity_array[row,col] = z
-        
-    #do not need to constantly write the same intensity values to the same array.
-    # write_hdf5(filename=stream_name, data=intensity_array)
 
-    ############## 3 RING INTEGRATION ################
+    """ 3 RING INTEGRATION """
+    
     threshold = PeakThresholdProcessor(intensity_array, threshold_value=10000)
     print ("Original threshold value: ", threshold.threshold_value, "\n")
     global coordinates
