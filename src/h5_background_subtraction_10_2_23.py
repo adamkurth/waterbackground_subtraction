@@ -173,8 +173,8 @@ def main(filename):
         image_array_size = dset.shape
         image.close()
         
-    ############## 3 RING INTEGRATION ################
-    
+    """ 3 RING INTEGRATION """
+        
     threshold = PeakThresholdProcessor(image_array, threshold_value=1000)
     print ("Original threshold value: ", threshold.threshold_value, "\n")
     global coordinates
@@ -198,7 +198,7 @@ if __name__ == "__main__":
     print("Working directory:", images_dir)
     image_path1 = os.path.join(images_dir, "9_18_23_high_intensity_3e8keV-2.h5")
     print(image_path1)
-    image_path2 = os.path.join(images_dir, "9_18_23_low_intensity_3e7keV-2.h5")
-    main(image_path1)
+    # image_path2 = os.path.join(images_dir, "9_18_23_low_intensity_3e7keV-2.h5")
+    # main(image_path1)
     # main(image_path2)
     
