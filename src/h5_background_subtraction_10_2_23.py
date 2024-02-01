@@ -99,7 +99,7 @@ def coordinate_menu(image_array, threshold_value, coordinates, radius):
                             else:
                                 print(f'(row,col) ({row_index}, {col_index}) with a value of ', values_array[row_index, col_index])
                                 total_sum += values_array[row_index, col_index]
-                print('\n######################')
+                print('\n-----------------------------\n')
                 print(bool_square)
                 print('Number of traversed cells', count)
                 print('Peak point to be skipped:', skipped_point)
@@ -197,8 +197,7 @@ if __name__ == "__main__":
     images_dir = os.path.join(parent_dir, "images")
     print("Working directory:", images_dir)
     image_path1 = os.path.join(images_dir, "9_18_23_high_intensity_3e8keV-2.h5")
-    print(image_path1)
-    # image_path2 = os.path.join(images_dir, "9_18_23_low_intensity_3e7keV-2.h5")
-    # main(image_path1)
-    # main(image_path2)
+    image_path2 = os.path.join(images_dir, "9_18_23_low_intensity_3e7keV-2.h5")
+    main(image_path1)
+    main(image_path2)
     
