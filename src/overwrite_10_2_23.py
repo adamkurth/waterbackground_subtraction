@@ -95,6 +95,7 @@ def retrieve(data_columns, *args):
     except Exception as e:
         pass
     return result
+
 #############################################
 
 
@@ -102,13 +103,24 @@ def overwrite_low_in_high(filename, overwrite_data):
     """
     Overwrite the low data in the high stream file with the given overwrite data.
     """
+    print("\n---------------------------------------------------\n")
+    print(f"Starting to overwrite data in file: {filename}\n")
+
+    # Read the existing content of the file
     with open(filename, 'r') as f:
         lines = f.readlines()
 
-    with open(filename, 'r+') as f:
+    # Track if any data was overwritten
+    data_overwritten = False
+
+    # Open the file for writing
+    with open(filename, 'w') as f:
         for line in lines:
             if line.startswith("   h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel"):
+                # Write the header line
                 f.write(line)
+
+                # Write the new data
                 for i in range(len(overwrite_data['h'])):
                     formatted_row = '{:>4} {:>4} {:>4} {:>9} {:>12} {:>12} {:>12} {:>6} {:>6} {:>6}\n'.format(
                         overwrite_data['h'][i],
@@ -123,56 +135,87 @@ def overwrite_low_in_high(filename, overwrite_data):
                         overwrite_data['panel'][i]
                     )
                     f.write(formatted_row)
+                    data_overwritten = True
             else:
                 # Write the unmodified line to the file
                 f.write(line)
+
+    # Log the completion and details
+    if data_overwritten:
+        print(f"Data overwritten successfully in file: {filename}\n")
+    else:
+        print(f"No data was overwritten in file: {filename}\n")        
 
 
 def intensity_finder(x_coords, y_coords, image_name):
     """
     Retrieve the intensity values for every x,y coordinate in the image.
     """
-    with h5.File(image_name, "r") as f:
-        intensities = f['/entry/data/data'][()]
-    intensities = np.array(intensities)
-    found_intensities = []
-    for x, y in zip(x_coords, y_coords):
-        if x < intensities.shape[0] and y < intensities.shape[1]:
-            found_intensities.append(intensities[int(x), int(y)])
+    if not os.path.exists(image_name):
+        print(f"File {image_name} does not exist.")
+        return
+    else :
+        print(f"File {image_name} exists.")
+    try:
+        with h5.File(image_name, "r") as f:
+            intensities = f['/entry/data/data'][()]
+        intensities = np.array(intensities)
+        found_intensities = []
+        for x, y in zip(x_coords, y_coords):
+            if x < intensities.shape[0] and y < intensities.shape[1]:
+                found_intensities.append(intensities[int(x), int(y)])
+    except Exception as e:
+        print(f"An error has occurred in intensity_finder: {str(e)}")
     return found_intensities
 
 
 def populate_intensity_array(data_columns, image_name):
     """
-    Populate the intensity array with the intensity values for each x,y coordinate.
+    Populate the intensity array with the intensity values for each x, y coordinate.
     """
-    # reads the h5 image
-    with h5.File(image_name, "r") as f:
-        intensities = f['/entry/data/data'][()]
-    intensities = np.array(intensities)
-    # generates a new array of zeros with the same shape as the image
-    new_intensities = np.zeros((intensities.shape[0], intensities.shape[1]))
-    # for each x,y coordinate in the data_columns, set the value in the new array to the intensity value
-    # populate the intensity array with corresponding (fs,ss) coordinates
-    for i in range(len(data_columns['fs'])):
-        x = int(data_columns['fs'][i])
-        y = int(data_columns['ss'][i])
-        if x < intensities.shape[0] and y < intensities.shape[1]:
-            new_intensities[x][y] = intensities[x][y]
+    # Check if the file exists
+    if not os.path.exists(image_name):
+        print(f"File {image_name} does not exist.")
+        return None
+
+    try:
+        # Open the file and read the data
+        with h5.File(image_name, "r") as f:
+            intensities = np.array(f['/entry/data/data'][()])
+    except Exception as e:
+        print(f"Error reading file {image_name}: {e}")
+        return None
+
+    # Create an empty array of zeros with the same shape as the intensities
+    new_intensities = np.zeros_like(intensities)
+
+    # Iterate over the coordinates and populate the new array
+    for x, y in zip(data_columns['fs'], data_columns['ss']):
+        # Convert coordinates to integers
+        x_int = int(round(x))
+        y_int = int(round(y))
+
+        # Check if the coordinates are within the bounds of the array
+        if 0 <= x_int < intensities.shape[0] and 0 <= y_int < intensities.shape[1]:
+            new_intensities[x_int, y_int] = intensities[x_int, y_int]
+
     return new_intensities
 
 def main():
-    print("Current working directory:", os.getcwd())
-    src_path = os.getcwd()
-    stream_dir = os.path.join(src_path, "high_low_stream")
-    image_dir = os.path.join(src_path, "images")
-    
+    root = "/Users/adamkurth/Documents/vscode/CXFEL_Image_Analysis/CXFEL/waterbackground_subtraction"
+    stream_dir = os.path.join(root, "high_low_stream")
+    image_dir = os.path.join(root, "images")
+    image_name = '9_18_23_low_intensity_3e7keV-1.h5'
+    image_path = os.path.join(image_dir, image_name)    
+
     intensities_array = None
     high_stream_name = 'test_high.stream'
     low_stream_name = 'test_low.stream'
 
-    high_stream_path = "high_low_stream/test_high.stream"
-    low_stream_path = "high_low_stream/test_low.stream"
+    # Specify the correct directory
+    # stream_dir = os.path.join("stream_files")
+    high_stream_path = os.path.join(stream_dir, high_stream_name)
+    low_stream_path = os.path.join(stream_dir, low_stream_name)
 
     if not os.path.exists(high_stream_path):
         print(f"File {high_stream_path} does not exist.")
@@ -199,15 +242,17 @@ def main():
     # compare_high_low(high_data, low_data, "h")
 
     # now high_stream has data from low_stream
-    
-    image_name = '9_18_23_high_intensity_3e8keV-1_test.h5'
-    image_path = os.path.join(image_dir, image_name)
 
     # retrieved from stream coordinate menu
     intensities = intensity_finder(high_data['fs'], high_data['ss'], image_path)
 
     # populate_inteneity_array is not correctly working
     intensities_array = populate_intensity_array(high_data, image_path)
+    if intensities_array is None:
+        print("Error: Intensity array could not be populated.")
+        return
+    else:
+        print("Intensity array successfully populated.")
 
     print("Number of non-zero values in intensity array\t", np.count_nonzero(intensities_array))  # 1251 10/13/23
 
