@@ -1,4 +1,5 @@
-# Background Subtraction
+# waterbackground_subtraction
+### Water Background Subtraction for Crystallography Image Analysis 
 
 This repository is dedicated to the implementation of a project focused on background subtraction for X-ray crystallography. It contains several directories and files, each serving a specific purpose in the project.
 
