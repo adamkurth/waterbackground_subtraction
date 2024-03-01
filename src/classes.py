@@ -82,16 +82,34 @@ class DataHandler:
             intensity[row, col] = Z
         return data_columns, intensity, stream_path
    
-    
 class ImageProcessor: 
-    def __init__(self, image):
+    def __init__(self, image, threshold):
         self.image = image
         self.dim = image.shape
         self.coordinates = self.find_peaks()
+        self.p = PeakThresholdProcessor(self.image, threshold_value=threshold)
+        self.threshold = self.p.threshold_value
 
     def find_peaks(self, min_distance=10, threshold_abs=250):
         coordinates = peak_local_max(self.image, min_distance=min_distance, threshold_abs=threshold_abs)
         return coordinates
+    
+    def _display_peaks_2d(self, img_threshold=0.005):
+        # for visualization exclusion diameter is okay
+        image, peaks = self.loaded_image, self.peaks
+        plt.figure(figsize=(10, 10))
+        masked_image = np.ma.masked_less_equal(image, img_threshold) # mask values less than threshold (for loading speed)
+        plt.imshow(masked_image, cmap='viridis')
+        
+        # filter peaks by threshold
+        flt_peaks = [coord for coord in peaks if image[coord] > img_threshold]
+        for x,y in flt_peaks: 
+            plt.scatter(y, x, color='r', s=50, marker='x') 
+            
+        plt.title('Image with Detected Peaks')            
+        plt.xlabel('X-axis (ss)')
+        plt.ylabel('Y-axis (fs)')
+        plt.show()
 
     def visualize_peaks(self):
         coordinates = self.coordinates
@@ -110,30 +128,57 @@ class ImageProcessor:
         fig = plt.figure(figsize=(15, 10))
         ax = fig.add_subplot(111, projection='3d')
 
-        # Grid setup
-        x, y = np.arange(0, image.shape[1], 1), np.arange(0, image.shape[0], 1)
+        # Prepare data
+        x = np.arange(0, image.shape[1])
+        y = np.arange(0, image.shape[0])
         X, Y = np.meshgrid(x, y)
-        Z = np.ma.masked_less_equal(image, img_threshold)
+        Z = image
 
-        # Surface plot with enhanced visual settings
-        surf = ax.plot_surface(X, Y, Z, cmap='coolwarm', linewidth=0, antialiased=True, alpha=0.7)
-        fig.colorbar(surf, shrink=0.5, aspect=5, label='Intensity')
+        # Flatten arrays for scatter plot
+        X_flat = X.flatten()
+        Y_flat = Y.flatten()
+        Z_flat = Z.flatten()
+
+        # Plotting all pixels as a scatter plot
+        pixel_scatter = ax.scatter(X_flat, Y_flat, Z_flat, c=Z_flat, cmap='coolwarm', alpha=0.6, marker='.')
         
-        # Filtering peaks above the threshold
-        flt_peaks = [(x, y) for x, y in coordinates if image[x, y] > img_threshold]
+        # Highlighting coordinates above the threshold
+        flt_peaks = [(y, x) for x, y in coordinates if image[x, y] > self.threshold]
         if flt_peaks:
-            p_x, p_y = zip(*[(y, x) for x, y in flt_peaks])  # Note the inversion of x and y for plotting
-            p_z = np.array([image[x, y] for x, y in flt_peaks])
-            ax.scatter(p_x, p_y, p_z, color='lime', s=100, marker='^', label='Peaks')
-        else: 
-            print(f"No peaks above the threshold {img_threshold} were found.")
+            p_x, p_y = zip(*flt_peaks)
+            p_z = [image[x, y] for x, y in flt_peaks]
+            ax.scatter(p_y, p_x, p_z, color='lime', s=50, marker='o', label='Highlighted Peaks', edgecolor='black')
 
-        ax.set_title('3D View of Image')
-        ax.set_xlabel('X-axis (ss)')
-        ax.set_ylabel('Y-axis (fs)')
+        # Colorbar and labels
+        fig.colorbar(pixel_scatter, shrink=0.5, aspect=5, label='Intensity')
+        ax.set_title('3D Scatter Plot of Image Intensity with Highlighted Peaks')
+        ax.set_xlabel('X-axis')
+        ax.set_ylabel('Y-axis')
         ax.set_zlabel('Intensity')
 
         plt.legend()
-        plt.show()                
-          
-          
+        plt.show()          
+        
+class PeakThresholdProcessor: 
+    def __init__(self, image, threshold_value=0):
+        self.image = image
+        self.threshold_value = threshold_value
+    
+    def _set_threshold_value(self, new):
+        self.threshold_value = new
+    
+    def _get_coordinates_above_threshold(self):  
+        coordinates = np.argwhere(self.image > self.threshold_value)
+        return coordinates
+    
+    def _get_local_maxima(self):
+        image_1d = self.image.flatten()
+        peaks, _ = find_peaks(image_1d, height=self.threshold_value)
+        coordinates = [self.flat_to_2d(idx) for idx in peaks]
+        return coordinates
+        
+    def _flat_to_2d(self, index):
+        shape = self.image.shape
+        rows, cols = shape
+        return (index // cols, index % cols) 
+    

@@ -7,13 +7,14 @@ base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # instance
 dh = c.DataHandler(base)
 
+
 # images
 high = dh.load_h5_image('9_18_23_high_intensity_3e8keV-2.h5')
 low = dh.load_h5_image('9_18_23_low_intensity_3e7keV-2.h5')
 
 # ImageProcessor
-ip_high = c.ImageProcessor(high)
-ip_low = c.ImageProcessor(low)
+ip_high = c.ImageProcessor(high, 250)
+ip_low = c.ImageProcessor(low, 250)
 
 high_stream, high_intensity, _ = dh.load_stream_data('test_high.stream')
 low_stream, low_intensity, _  = dh.load_stream_data('test_low.stream')
@@ -23,8 +24,8 @@ high_coordinates = ip_high.find_peaks()
 low_coordinates = ip_low.find_peaks()
 
 # visualize
-ip_high.visualize_peaks()
-ip_low.visualize_peaks()
+# ip_high.visualize_peaks()
+# ip_low.visualize_peaks()
 
 ip_high.visualize_image_3d()
 ip_low.visualize_image_3d()
