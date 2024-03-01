@@ -8,43 +8,27 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from skimage.feature import peak_local_max
 from scipy.signal import find_peaks, peak_prominences, peak_widths
-# from skimage import filters
+from skimage import filters
 from skimage.filters import median
 from skimage.morphology import disk
-# from skimage.util import img_as_float
-# from skimage.exposure import rescale_intensity
-# from collections import namedtuple
+from skimage.util import img_as_float
+from skimage.exposure import rescale_intensity
+from collections import namedtuple
 
 class BackgroundSubtraction:
-    def __init__(self, filename, stream_name):
+    def __init__(self):
         self.cxfel_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.images_dir = self._walk()
         self.waterbackground_dir = self._walk_waterbackground()
-        self.images_dir = os.path.join(self.waterbackground_dir, 'images')
-        self.loaded_image, self.image_path = self._load_h5(self.images_dir, filename) # either high or low
-        self.radii = [1,2,3,4]
-        self.p = PeakThresholdProcessor(self.loaded_image, 250) 
-        self.coordinates = self.p._get_coordinates_above_threshold() #naive approach
+        self.args = self._args()
+        self.radii = [1, 2, 3, 4]
+        self.loaded_image, self.image_path = self._load_h5(self.images_dir)
+        self.p = PeakThresholdProcessor(self.loaded_image, 1000)
+        self.coordinates = self.p._get_coordinates_above_threshold()
+        # self.peaks = self._find_peaks(use_1d=False)
         self.high_low_stream_dir = self._walk_highlow()
-        self.stream_data, self.stream_intensity, self.stream_path = self._load_stream(stream_name)
-        
-        
-        # self.cxfel_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        # self.images_dir = self._walk()
-        # # highlow images 
-        # self.high_low_images_dir = os.path.join(self.waterbackground_dir, 'images')
-        # self.high_image, self.high_image_path, self.low_image, self.low_image_path = self._get_high_low_images()
-        # # self.high_image, self.high_image_path = self._load_h5('9_18_23_high_intensity_3e8keV-2.h5')
-        # # self.low_image, self.high_image_path = self._load_h5('9_18_23_low_intensity_3e7keV-2.h5')
-        # # self.args = self._args()
-        # self.radii = [1, 2, 3, 4]
-        # # self.loaded_image, self.image_path = self._load_h5(self.images_dir)
-        # self.p = PeakThresholdProcessor(self.loaded_image, 250)
-        # self.coordinates = self.p._get_coordinates_above_threshold()
-        # # self.peaks = self._find_peaks(use_1d=False)
-        # # stream
-        # self.high_low_stream_dir = self._walk_highlow()
-        # self.high_data, self.high_intensity, self.high_data_path = self._load_stream('test_high.stream')
-        # self.low_data, self.low_intensity, self.low_data_path = self._load_stream('test_low.stream')
+        self.high_data, _, self.high_data_path = self._load_stream('test_high.stream')
+        self.low_data, _, self.low_data_path = self._load_stream('test_low.stream')
 
     # path management
     def _walk(self):
@@ -55,37 +39,21 @@ class BackgroundSubtraction:
                 return os.path.join(root, "images")
         raise Exception("Could not find the 'images' directory starting from", start)
 
-    def _load_h5(self, image_dir_path, image_name):
-        image_path = os.path.join(image_dir_path, image_name)
-        print("Loading image:", image_name)
+    def _load_h5(self, image_dir):
+        # choose images with "processed" in the name for better visuals
+        image_files = [f for f in os.listdir(image_dir) if f.endswith('.h5') and 'processed' in f]
+        if not image_files:
+            raise FileNotFoundError("No processed images found in the directory.")
+        # choose a random image to load
+        random_image = np.random.choice(image_files)
+        image_path = os.path.join(image_dir, random_image)
+        print("Loading image:", random_image)
         try:
             with h5.File(image_path, 'r') as file:
                 data = file['entry/data/data'][:]
             return data, image_path
         except Exception as e:
             raise OSError(f"Failed to read {image_path}: {e}")
-
-    # def _get_high_low_images(self):
-    #     high, high_image_path = self._load_h5( self.high_low_images_dir, ('9_18_23_high_intensity_3e8keV-2.h5'))
-    #     low, low_image_path= self._load_h5(self.waterbackground_dir, ('9_18_23_low_intensity_3e7keV-2.h5'))
-    #     return high, high_image_path, low, low_image_path
-
-    # def _load_h5(self, image_dir):
-    #     # choose images with "processed" in the name for better visuals
-    #     image_files = [f for f in os.listdir(image_dir) if f.endswith('.h5') and f.startswith('img')]
-    #     # image_files = [f for f in os.listdir(image_dir) if f.endswith('.h5') and 'processed' in f]
-    #     if not image_files:
-    #         raise FileNotFoundError("No processed images found in the directory.")
-    #     # choose a random image to load
-    #     random_image = np.random.choice(image_files)
-    #     image_path = os.path.join(image_dir, random_image)
-    #     print("Loading image:", random_image)
-    #     try:
-    #         with h5.File(image_path, 'r') as file:
-    #             data = file['entry/data/data'][:]
-    #         return data, image_path
-    #     except Exception as e:
-    #         raise OSError(f"Failed to read {image_path}: {e}")
     
     # default background subtraction
     def _coordinate_menu(self, r):
@@ -140,27 +108,23 @@ class BackgroundSubtraction:
         print("\n")
 
     def _display(self, img_threshold=0.05):
-        mask = self.loaded_image > img_threshold # for plotting plt
-        y_vals, x_vals = np.where(mask)
-        z_vals = self.loaded_image[mask]
-         
+        y_vals, x_vals = np.where(self.loaded_image > img_threshold)
+        z_vals = self.loaded_image[y_vals, x_vals] 
         # plot
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         scatter = ax.scatter(x_vals, y_vals, z_vals, c=z_vals, cmap='hot', marker='o')
-        
-        # Highlight coordinates above the set threshold in the class
-        highlighted_coords = np.array([self.loaded_image[y, x] for x, y in self.coordinates if mask[y, x]])
-        if highlighted_coords.size > 0:
-            h_x_vals, h_y_vals = np.transpose([coord for coord in self.coordinates if mask[coord[1], coord[0]]])
-            ax.scatter(h_x_vals, h_y_vals, highlighted_coords, color='blue', s=100, edgecolor='black', marker='^', label='Highlighted')
 
-        # 
+        # Highlight coordinates above the set threshold in the class
+        for x, y in self.coordinates:
+            if self.loaded_image[y, x] > img_threshold:
+                ax.scatter(x, y, self.loaded_image[y, x], color='blue', s=100, edgecolor='black', marker='^', label='Highlighted')
+
         # Enhancements for better visualization
         ax.set_xlabel('X Coordinate (ss)')
         ax.set_ylabel('Y Coordinate (fs)')
         ax.set_zlabel('Intensity (I)')
-        ax.set_title(f'Scatter Plot of Intensity Values Above {img_threshold}')
+        ax.set_title('Scatter Plot of Intensity Values Above 0.05')
         plt.colorbar(scatter, label='Intensity')
         
         # Only add legend for highlighted points once
@@ -170,40 +134,28 @@ class BackgroundSubtraction:
 
         plt.show()
 
-    def _display_peaks_3d(self):
-        # Use the PeakThresholdProcessor's threshold value dynamically
-        img_threshold = self.p.threshold_value
-        image = self.loaded_image
-
+    def _display_peaks_3d(self, img_threshold=0.005):
+        image, peaks = self.loaded_image, self.peaks
         fig = plt.figure(figsize=(15, 10))
         ax = fig.add_subplot(111, projection='3d')
-
-        # Create a meshgrid for the image data
-        x, y = np.arange(0, image.shape[1]), np.arange(0, image.shape[0])
+        
+        # grid 
+        x, y = np.arange(0, image.shape[1], 1), np.arange(0, image.shape[0], 1)
         X, Y = np.meshgrid(x, y)
-
-        # Plot the surface, masking values below or equal to the threshold
         Z = np.ma.masked_less_equal(image, img_threshold)
+        # plot surface/image data 
         surf = ax.plot_surface(X, Y, Z, cmap='viridis', linewidth=0, antialiased=False, alpha=0.6)
+        fig.colorbar(surf, shrink=0.5, aspect=5, label='Intensity')
+        flt_peaks = [coord for coord in peaks if image[coord] > img_threshold]
+        if flt_peaks:
+            p_x, p_y = zip(*flt_peaks)
+            p_z = np.array([image[px, py] for px, py in flt_peaks])
+            ax.scatter(p_y, p_x, p_z, color='r', s=50, marker='x', label='Peaks')
+        else: 
+            print(f"No peaks above the threshold {self.args.threshold_value} were found.")
 
-        # Ensure self.peaks is iterable and not None
-        peaks = self.peaks if self.peaks is not None else []
-
-        # Filter points to ensure they are within the image bounds
-        valid_points = [(x, y) for x, y in (peaks if peaks else self.coordinates) 
-                        if 0 <= y < image.shape[0] and 0 <= x < image.shape[1]]
-        
-        # Determine points to plot based on whether any valid points exceed the threshold
-        points_to_plot = [coord for coord in valid_points if image[coord] > img_threshold]
-
-        # Highlight points above the threshold
-        if points_to_plot:
-            p_x, p_y = zip(*[(y, x) for x, y in points_to_plot])  # Adjust indexing
-            p_z = [image[y, x] for x, y in points_to_plot]
-            ax.scatter(p_x, p_y, p_z, color='red', s=50, edgecolor='black', marker='^', label='Highlighted Points')
-
-        # Enhancements for visualization
-        ax.set_title('3D View of Image with Highlighted Points')
+        # labels 
+        ax.set_title('3D View of Image with Detected Peaks')
         ax.set_xlabel('X-axis (ss)')
         ax.set_ylabel('Y-axis (fs)')
         ax.set_zlabel('Intensity')
@@ -211,49 +163,7 @@ class BackgroundSubtraction:
 
         plt.legend()
         plt.show()
-    
-    def _display_peaks_3d_optimized(self):
-        # Use the PeakThresholdProcessor's threshold value dynamically
-        img_threshold = self.p.threshold_value
-        image = self.loaded_image  # Use the full resolution image
-        
-        fig = plt.figure(figsize=(20, 15))
-        ax = fig.add_subplot(111, projection='3d')
-        
-        # Create a meshgrid for the image data
-        x, y = np.arange(0, image.shape[1]), np.arange(0, image.shape[0])
-        X, Y = np.meshgrid(x, y)
-        
-        # Plot the surface
-        Z = image
-        surf = ax.plot_surface(X, Y, Z, cmap='viridis', linewidth=0, antialiased=False, alpha=0.6)
-        
-        # Add a threshold plane
-        xlim, ylim = ax.get_xlim(), ax.get_ylim()
-        xx, yy = np.meshgrid(xlim, ylim)
-        zz = np.full(xx.shape, img_threshold)
-        ax.plot_surface(xx, yy, zz, color='magenta', alpha=0.2, zorder=1)
-        
-        # Highlight peaks above the threshold
-        peaks_above_threshold = [(x, y) for x, y in self.peaks if image[y, x] > img_threshold]
-        if peaks_above_threshold:
-            p_x, p_y = zip(*peaks_above_threshold)
-            p_z = image[p_y, p_x]
-            ax.scatter(p_x, p_y, p_z, color='red', s=50, edgecolor='black', marker='^', label='Peaks Above Threshold')
-        
-        # Enhancements for visualization
-        ax.set_xlabel('X-axis (ss)')
-        ax.set_ylabel('Y-axis (fs)')
-        ax.set_zlabel('Intensity')
-        ax.set_title('3D View of Image with Threshold Plane and Highlighted Peaks')
-        fig.colorbar(surf, shrink=0.5, aspect=5, label='Intensity')
-        
-        # Adjust the Z axis limit to ensure the threshold plane is visible
-        ax.set_zlim(min(img_threshold, ax.get_zlim()[0]), max(ax.get_zlim()[1], np.max(Z) * 1.1))
-        
-        plt.legend()
-        plt.show()
-                
+
     # stream adaptation     
     @staticmethod
     def _walk_waterbackground():
@@ -345,6 +255,7 @@ class BackgroundSubtraction:
             intensity[row, col] = Z
         return data_columns, intensity, path
     
+    
     # overwrite implementation
     def _duplicate_before(self, file):
         """Create a copy of the file before overwriting."""
@@ -416,119 +327,110 @@ class BackgroundSubtraction:
             print(f"Data overwritten successfully in file: {file}")
         else:
             print(f"No data was overwritten in file: {file}")
-          
-
-    def _display_lowhigh(self):
-        pass
-        
+            
+            
     # main
     def main(self):
-        print(self.waterbackground_dir)
+        # no if __name__ == "main""
 
-        # for r in self.radii:
-        #     self._coordinate_menu(r)
-        # self._display()
-        
-        # self._display_peaks_3d()
-        # self._display_peaks_3d_optimized()
-        
-        # high_data, high_intensity, high_path = self._load_stream('test_high.stream') 
+        for r in self.radii:
+            self._coordinate_menu(r)
+        self._display()
+        self._display_peaks_3d()
+
+        # high_data, high_intensity, high_path = self._load_stream('test_high.stream')
         # low_data, low_intensity, low_path = self._load_stream('test_low.stream')
         # self._overwrite(self.high_data)    
         
-
-
-
-
     # extra development 
     
-    # # peak detection using sklearn
-    # @staticmethod
-    # def _args():
-    #     parser = argparse.ArgumentParser(description='Apply a Gaussian mask to an HDF5 image and detect peaks with noise reduction')
-    #     # Noise reduction parameter
-    #     parser.add_argument('--median_filter_size', type=int, default=3, help='Size of the median filter for noise reduction', required=False)
-    #     # Peak detection parameters
-    #     parser.add_argument('--min_distance', type=int, default=10, help='Minimum number of pixels separating peaks', required=False)
-    #     parser.add_argument('--prominence', type=float, default=1.0, help='Required prominence of peaks', required=False)
-    #     parser.add_argument('--width', type=float, default=5.0, help='Required width of peaks', required=False)
-    #     parser.add_argument('--min_prominence', type=float, default=0.1, help='Minimum prominence to consider a peak', required=False)
-    #     parser.add_argument('--min_width', type=float, default=1.0, help='Minimum width to consider a peak', required=False)
-    #     parser.add_argument('--threshold_value', type=float, default=500, help='Threshold value for peak detection', required=False)
-    #     # Region of interest parameters for peak analysis
-    #     parser.add_argument('--region_size', type=int, default=9, help='Size of the region to extract around each peak for analysis', required=False)
-    #     return parser.parse_args()
+    # peak detection using sklearn
+    @staticmethod
+    def _args():
+        parser = argparse.ArgumentParser(description='Apply a Gaussian mask to an HDF5 image and detect peaks with noise reduction')
+        # Noise reduction parameter
+        parser.add_argument('--median_filter_size', type=int, default=3, help='Size of the median filter for noise reduction', required=False)
+        # Peak detection parameters
+        parser.add_argument('--min_distance', type=int, default=10, help='Minimum number of pixels separating peaks', required=False)
+        parser.add_argument('--prominence', type=float, default=1.0, help='Required prominence of peaks', required=False)
+        parser.add_argument('--width', type=float, default=5.0, help='Required width of peaks', required=False)
+        parser.add_argument('--min_prominence', type=float, default=0.1, help='Minimum prominence to consider a peak', required=False)
+        parser.add_argument('--min_width', type=float, default=1.0, help='Minimum width to consider a peak', required=False)
+        parser.add_argument('--threshold_value', type=float, default=500, help='Threshold value for peak detection', required=False)
+        # Region of interest parameters for peak analysis
+        parser.add_argument('--region_size', type=int, default=9, help='Size of the region to extract around each peak for analysis', required=False)
+        return parser.parse_args()
     
-    # def _find_peaks(self, use_1d=False):
-    #     """
-    #     This function processes the loaded image to find and refine peaks.
-    #     It first reduces noise using a median filter, then applies a Gaussian mask.
-    #     After initial peak detection, it refines the peaks based on prominence and width criteria.
-    #     """
-    #     # assuming: self.loaded_image is the image to be processed
-    #     # Noise reduction
-    #     denoised_image = median(self.loaded_image, disk(self.args.median_filter_size)) # disk(3) is a 3x3 circular mask
-    #     # Gaussian mask application
-    #     # masked_image = self._apply(denoised_image)
-    #     # Initial peak detection
-    #     #   coordinates output from peak_local_max (not necissarily peaks)
-    #     coordinates = peak_local_max(denoised_image, min_distance=self.args.min_distance) 
-    #     # Peak refinement
-    #     refined_peaks = self._refine_peaks(denoised_image, coordinates, use_1d)
-    #     return refined_peaks
+    def _find_peaks(self, use_1d=False):
+        """
+        This function processes the loaded image to find and refine peaks.
+        It first reduces noise using a median filter, then applies a Gaussian mask.
+        After initial peak detection, it refines the peaks based on prominence and width criteria.
+        """
+        # assuming: self.loaded_image is the image to be processed
+        # Noise reduction
+        denoised_image = median(self.loaded_image, disk(self.args.median_filter_size)) # disk(3) is a 3x3 circular mask
+        # Gaussian mask application
+        # masked_image = self._apply(denoised_image)
+        # Initial peak detection
+        #   coordinates output from peak_local_max (not necissarily peaks)
+        coordinates = peak_local_max(denoised_image, min_distance=self.args.min_distance) 
+        # Peak refinement
+        refined_peaks = self._refine_peaks(denoised_image, coordinates, use_1d)
+        return refined_peaks
 
-    # def _refine_peaks(self, image, coordinates, use_1d=False):
-    #     """
-    #     Unified function to refine detected peaks using either 1D or 2D criteria.
-    #     Extracts a region around each peak and analyzes it to determine the true peaks.
-    #     """
-    #     if use_1d:
-    #         return self._refine_peaks_1d(image)
-    #     else:
-    #         return self._refine_peaks_2d(image, coordinates)
+    def _refine_peaks(self, image, coordinates, use_1d=False):
+        """
+        Unified function to refine detected peaks using either 1D or 2D criteria.
+        Extracts a region around each peak and analyzes it to determine the true peaks.
+        """
+        if use_1d:
+            return self._refine_peaks_1d(image)
+        else:
+            return self._refine_peaks_2d(image, coordinates)
     
-    # def _refine_peaks_1d(self, image, axis=0):
-    #     """
-    #     Applies 1D peak refinement to each row or column of the image.
-    #     axis=0 means each column is treated as a separate 1D signal; axis=1 means each row.
-    #     """
-    #     refined_peaks = []
-    #     num_rows, num_columns = image.shape
-    #     for index in range(num_columns if axis == 0 else num_rows):
-    #         # Extract a row or column based on the specified axis
-    #         signal = image[:, index] if axis == 0 else image[index, :]
+    def _refine_peaks_1d(self, image, axis=0):
+        """
+        Applies 1D peak refinement to each row or column of the image.
+        axis=0 means each column is treated as a separate 1D signal; axis=1 means each row.
+        """
+        refined_peaks = []
+        num_rows, num_columns = image.shape
+        for index in range(num_columns if axis == 0 else num_rows):
+            # Extract a row or column based on the specified axis
+            signal = image[:, index] if axis == 0 else image[index, :]
             
-    #         # Find peaks in this 1D signal
-    #         peaks, _ = find_peaks(signal, prominence=self.args.prominence, width=self.args.width)
+            # Find peaks in this 1D signal
+            peaks, _ = find_peaks(signal, prominence=self.args.prominence, width=self.args.width)
             
-    #         # Store refined peaks with their original coordinates
-    #         for peak in peaks:
-    #             if axis == 0:
-    #                 refined_peaks.append((peak, index))  # For columns
-    #             else:
-    #                 refined_peaks.append((index, peak))  # For rows
-    #     return refined_peaks
+            # Store refined peaks with their original coordinates
+            for peak in peaks:
+                if axis == 0:
+                    refined_peaks.append((peak, index))  # For columns
+                else:
+                    refined_peaks.append((index, peak))  # For rows
+        return refined_peaks
 
-    # def _refine_peaks_2d(self, image, coordinates):
-    #     """
-    #     Refines detected peaks in a 2D image based on custom criteria.
-    #     """
-    #     exclusion_radius = 10  # pixels (avoid beam stop)
-    #     x_center, y_center = image.shape[0] // 2, image.shape[1] // 2
+    def _refine_peaks_2d(self, image, coordinates):
+        """
+        Refines detected peaks in a 2D image based on custom criteria.
+        """
+        exclusion_radius = 10  # pixels (avoid beam stop)
+        x_center, y_center = image.shape[0] // 2, image.shape[1] // 2
         
-    #     refined_peaks = []
-    #     threshold = self.args.threshold_value
-    #     for x, y in coordinates:
-    #         dist_from_beamstop = np.sqrt((x - x_center) ** 2 + (y - y_center) ** 2)
+        refined_peaks = []
+        threshold = self.args.threshold_value
+        for x, y in coordinates:
+            dist_from_beamstop = np.sqrt((x - x_center) ** 2 + (y - y_center) ** 2)
             
-    #         # extract small region around peak and apply custom criterion
-    #         if dist_from_beamstop > exclusion_radius:
-    #             region = image[max(0, x-10):x+10, max(0, y-10):y+10]
+            # extract small region around peak and apply custom criterion
+            if dist_from_beamstop > exclusion_radius:
+                region = image[max(0, x-10):x+10, max(0, y-10):y+10]
                 
-    #             # check if peak is significantly brighter than median of its surrounding
-    #             if image[x, y] > np.median(region) + threshold:
-    #                 refined_peaks.append((x, y))
-    #         return refined_peaks
+                # check if peak is significantly brighter than median of its surrounding
+                if image[x, y] > np.median(region) + threshold:
+                    refined_peaks.append((x, y))
+            return refined_peaks
 
 class PeakThresholdProcessor: 
     def __init__(self, image, threshold_value=0):
@@ -585,8 +487,8 @@ class ArrayRegion:
         return region
      
     
-# # if __name__ == "__main__":
-#     b = BackgroundSubtraction()
-#     b.main()
+# if __name__ == "__main__":
+    b = BackgroundSubtraction()
+    b.main()
 
 

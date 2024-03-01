@@ -1,15 +1,20 @@
+#!/usr/bin/python3
+
 import background as bg
 
-
 # Demo of waterbackground subtraction and Bragg peak integration
-b = bg.BackgroundSubtraction()
-b.main() # runs _coordinate_menu() for radii list
 
-print(f'Number of coordinates above threshold of {b.p.threshold_value}):\n {len(b.coordinates)}')
+high = bg.BackgroundSubtraction('9_18_23_high_intensity_3e8keV-2.h5', 'test_high.stream')
+low = bg.BackgroundSubtraction('9_18_23_low_intensity_3e7keV-2.h5', 'test_low.stream')
 
-high_data, high_intensity, high_path = b._load_stream('test_high.stream')
-low_data, low_intensity, low_path = b._load_stream('test_low.stream')
+high.main()
+low.main()
 
+
+print(f'Number of coordinates above threshold of {high.p.threshold_value}):\n {len(high.coordinates)}')
+print(f'Number of coordinates above threshold of {low.p.threshold_value}):\n {len(low.coordinates)}')
+
+# b._overwrite(b.high_data)    
 
 # print(f'List of found Bragg peaks:\n {b.peaks}') # doesn't work right 
 
