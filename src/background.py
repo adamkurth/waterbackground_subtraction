@@ -18,14 +18,17 @@ class BackgroundSubtraction:
     def __init__(self):
         self.cxfel_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.images_dir = self._walk()
+        self.waterbackground_dir = self._walk_waterbackground()
         self.args = self._args()
         self.radii = [1, 2, 3, 4]
         self.loaded_image, self.image_path = self._load_h5(self.images_dir)
-        # self.loaded_image, self.image_path = self._load_test()
         self.p = PeakThresholdProcessor(self.loaded_image, 1000)
         self.coordinates = self.p._get_coordinates_above_threshold()
         self.peaks = self._find_peaks(use_1d=False)
+        self.high_low_stream_dir = self._walk_highlow()
+
         
+    # path management
     def _walk(self):
         # returns images/ directory
         start = self.cxfel_root
@@ -34,14 +37,14 @@ class BackgroundSubtraction:
                 return os.path.join(root, "images")
         raise Exception("Could not find the 'images' directory starting from", start)
     
-    def _load_test(self):
-        image_path = os.path.join(os.getcwd(), "9_18_23_high_intensity_3e8keV.h5")
-        try:
-            with h5.File(image_path, 'r') as file:
-                data = file['entry/data/data'][:]
-            return data, image_path
-        except Exception as e:
-            raise OSError(f"Failed to read {image_path}: {e}")
+    # def _load_test(self):
+    #     image_path = os.path.join(os.getcwd(), "9_18_23_high_intensity_3e8keV.h5")
+    #     try:
+    #         with h5.File(image_path, 'r') as file:
+    #             data = file['entry/data/data'][:]
+    #         return data, image_path
+    #     except Exception as e:
+    #         raise OSError(f"Failed to read {image_path}: {e}")
         
     def _load_h5(self, image_dir):
         # choose images with "processed" in the name for better visuals
@@ -59,6 +62,7 @@ class BackgroundSubtraction:
         except Exception as e:
             raise OSError(f"Failed to read {image_path}: {e}")
     
+    # default background subtraction
     def _coordinate_menu(self, r):
         print(f"\nCoordinates above given threshold: with radius: {r}")
         coordinates = self.coordinates
@@ -167,16 +171,145 @@ class BackgroundSubtraction:
 
         plt.legend()
         plt.show()
+
+
+
+
+
+    # stream adaptation     
+    @staticmethod
+    def _walk_waterbackground():
+        """Dynamically find the project root directory based on script location."""
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        while current_dir:
+            if 'waterbackground_subtraction' in os.listdir(current_dir):
+                return os.path.join(current_dir, 'waterbackground_subtraction')
+            parent_dir = os.path.dirname(current_dir)
+            if current_dir == parent_dir:  # If we've reached the root of the filesystem
+                break
+            current_dir = parent_dir
+        raise FileNotFoundError("waterbackground_subtraction directory not found.")
+
+
+    def _walk_highlow(self):
+        """Find the high_low_stream directory starting from the project root directory."""
+        for root, dirs, _ in os.walk(self.cxfel_root):
+            if 'high_low_stream' in dirs:
+                return os.path.join(root, 'high_low_stream')
+        raise FileNotFoundError("high_low_stream directory not found.")
     
+    def _load_stream(self, file):
+        """Load and process data from a specified stream file."""
+        path = os.path.join(self.high_low_stream_dir, file)
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"{file} not found in high_low_stream directory.")
+        
+        print(f"\nLoading file: {file}")
+        with open(path, 'r') as stream:
+            data_columns = {'h': [], 'k': [], 'l': [], 'I': [], 'sigmaI': [], 'peak': [], 'background': [], 'fs': [], 'ss': [], 'panel': []}        # try:        
+
+            # prep 
+            x, y, z = [], [], []
+            reading_peaks = False
+            reading_geometry = False
+            reading_chunks = True 
+            data_columns = {'h':[], 'k':[], 'l':[],'I':[], 'sigmaI':[], 'peak':[], 'background':[],'fs':[],'ss':[], 'panel':[]}        
+            for line in stream:
+                if reading_chunks:
+                    if line.startswith('End of peak list'):
+                        reading_peaks = False
+                    elif line.startswith("   h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel"):
+                        reading_peaks = True
+                        continue
+                    elif reading_peaks:
+                        try:
+                            elements = line.split()
+                            for key, element in zip(data_columns.keys(), elements):
+                                data_columns[key].append(float(element) if key not in {'h', 'k', 'l', 'panel'} else element)
+                                # data_columns['h'].append(int(elements[0]))
+                                # data_columns['k'].append(int(elements[1]))
+                                # data_columns['l'].append(int(elements[2]))
+                                # data_columns['I'].append(float(elements[3]))
+                                # data_columns['sigmaI'].append(float(elements[4]))
+                                # data_columns['peak'].append(float(elements[5]))
+                                # data_columns['background'].append(float(elements[6]))
+                                # data_columns['fs'].append(float(elements[7]))
+                                # data_columns['ss'].append(float(elements[8]))
+                                # data_columns['panel'].append(str(elements[9]))
+                        except:
+                            pass
+                elif line.startswith('----- End geometry file -----'):
+                    reading_geometry = False
+                elif reading_geometry:   
+                    try:
+                        par, val = line.split('=')
+                        if par.split('/')[-1].strip() == 'max_fs' and int(val) > max_fs:
+                            max_fs = int(val)
+                        elif par.split('/')[-1].strip() == 'max_ss' and int(val) > max_ss:
+                            max_ss = int(val)
+                    except ValueError:
+                        pass
+                elif line.startswith('----- Begin geometry file -----'):
+                    reading_geometry = True
+                elif line.startswith('----- Begin chunk -----'):
+                    reading_chunks = True   
+            
+            print(f"File {file} loaded successfully.\n")
+            return self.process_stream_data(data_columns)
+  
+    def process_stream_data(self, data_columns):
+        """Process loaded stream data to calculate intensity matrix."""
+        x, y, z = data_columns['fs'], data_columns['ss'], data_columns['I']
+        if not x:
+            raise ValueError("Stream file contains no data.")
+        xmin, xmax = np.min(x), np.max(x)
+        ymin, ymax = np.min(y), np.max(y)
+        intensity = np.zeros((int(xmax - xmin + 1), int(ymax - ymin + 1)))
+
+        for X, Y, Z in zip(x, y, z):
+            row, col = int(X - xmin), int(Y - ymin)
+            intensity[row, col] = Z
+        return data_columns, intensity
+
+        
+    # def _load_high_low(self):
+    #     def paths():
+    #         # return correct high/low paths
+    #         high_low_dir = self._walk_stream()
+    #         files = os.listdir(high_low_dir)
+            
+    #         if len(files) != 2:
+    #             raise Exception("Could not find 'test_high.stream' and 'test_low.stream' in", high_low_dir)
+
+    #         files = [f for f in files if f in ['test_high.stream', 'test_low.stream']]
+    #         high_path, low_path = os.path.join(high_low_dir,  'test_high.stream'), os.path.join(high_low_dir,  'test_low.stream')
+    #         return high_path, low_path
+        
+    #     high_path, low_path = paths()
+    #     high_data, high_intensity = self._load_stream(high_path)
+    #     low_data, low_intensity = self._load_stream(low_path)
+    #     print('SUCCESS!\n\n')
+    #     print('high/low data:\n', high_data, low_data)
+    #     print('high/low intensity', high_intensity, low_intensity)
+        
+        # return high_data, high_intensity, low_data, low_intensity
     
+    # main
     def main(self):
         b = BackgroundSubtraction()
-        for r in b.radii:
-            b._coordinate_menu(r)
+        # for r in b.radii:
+            # b._coordinate_menu(r)
         # b._display()
-        b._display_peaks_3d()
+        # b._display_peaks_3d()
+        high_data, high_intensity = b._load_stream('test_high.stream')
+        low_data, low_intensity = b._load_stream('test_low.stream')
         
-    
+        
+        
+        
+        
+
+    # peak detection using sklearn
     @staticmethod
     def _args():
         parser = argparse.ArgumentParser(description='Apply a Gaussian mask to an HDF5 image and detect peaks with noise reduction')
@@ -264,8 +397,6 @@ class BackgroundSubtraction:
                     refined_peaks.append((x, y))
             return refined_peaks
 
-
-
 class PeakThresholdProcessor: 
     def __init__(self, image, threshold_value=0):
         self.image = image
@@ -319,10 +450,10 @@ class ArrayRegion:
         # Set print options for better readability
         np.set_printoptions(precision=8, suppress=True, linewidth=120, edgeitems=7)
         return region
+     
     
-# if __name__ == "__main__":
-#     b = BackgroundSubtraction()
-#     b.main()
-
+if __name__ == "__main__":
+    b = BackgroundSubtraction()
+    b.main()
 
 
