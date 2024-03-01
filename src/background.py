@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import h5py as h5
 import argparse  
 import numpy as np
@@ -24,10 +25,11 @@ class BackgroundSubtraction:
         self.loaded_image, self.image_path = self._load_h5(self.images_dir)
         self.p = PeakThresholdProcessor(self.loaded_image, 1000)
         self.coordinates = self.p._get_coordinates_above_threshold()
-        self.peaks = self._find_peaks(use_1d=False)
+        # self.peaks = self._find_peaks(use_1d=False)
         self.high_low_stream_dir = self._walk_highlow()
+        self.high_data, _, self.high_data_path = self._load_stream('test_high.stream')
+        self.low_data, _, self.low_data_path = self._load_stream('test_low.stream')
 
-        
     # path management
     def _walk(self):
         # returns images/ directory
@@ -36,16 +38,7 @@ class BackgroundSubtraction:
             if "images" in dirs:
                 return os.path.join(root, "images")
         raise Exception("Could not find the 'images' directory starting from", start)
-    
-    # def _load_test(self):
-    #     image_path = os.path.join(os.getcwd(), "9_18_23_high_intensity_3e8keV.h5")
-    #     try:
-    #         with h5.File(image_path, 'r') as file:
-    #             data = file['entry/data/data'][:]
-    #         return data, image_path
-    #     except Exception as e:
-    #         raise OSError(f"Failed to read {image_path}: {e}")
-        
+
     def _load_h5(self, image_dir):
         # choose images with "processed" in the name for better visuals
         image_files = [f for f in os.listdir(image_dir) if f.endswith('.h5') and 'processed' in f]
@@ -73,7 +66,6 @@ class BackgroundSubtraction:
         if choice.lower() == 'q':
             print("Quitting...")
             return
-        
         try:
             index = int(choice)-1 
             if 0 <= index < len(coordinates):
@@ -172,10 +164,6 @@ class BackgroundSubtraction:
         plt.legend()
         plt.show()
 
-
-
-
-
     # stream adaptation     
     @staticmethod
     def _walk_waterbackground():
@@ -189,7 +177,6 @@ class BackgroundSubtraction:
                 break
             current_dir = parent_dir
         raise FileNotFoundError("waterbackground_subtraction directory not found.")
-
 
     def _walk_highlow(self):
         """Find the high_low_stream directory starting from the project root directory."""
@@ -206,14 +193,11 @@ class BackgroundSubtraction:
         
         print(f"\nLoading file: {file}")
         with open(path, 'r') as stream:
-            data_columns = {'h': [], 'k': [], 'l': [], 'I': [], 'sigmaI': [], 'peak': [], 'background': [], 'fs': [], 'ss': [], 'panel': []}        # try:        
-
-            # prep 
+            data_columns = {'h': [], 'k': [], 'l': [], 'I': [], 'sigmaI': [], 'peak': [], 'background': [], 'fs': [], 'ss': [], 'panel': []}
             x, y, z = [], [], []
             reading_peaks = False
             reading_geometry = False
             reading_chunks = True 
-            data_columns = {'h':[], 'k':[], 'l':[],'I':[], 'sigmaI':[], 'peak':[], 'background':[],'fs':[],'ss':[], 'panel':[]}        
             for line in stream:
                 if reading_chunks:
                     if line.startswith('End of peak list'):
@@ -255,9 +239,9 @@ class BackgroundSubtraction:
                     reading_chunks = True   
             
             print(f"File {file} loaded successfully.\n")
-            return self.process_stream_data(data_columns)
+            return self.process_stream_data(data_columns, path)
   
-    def process_stream_data(self, data_columns):
+    def process_stream_data(self, data_columns, path):
         """Process loaded stream data to calculate intensity matrix."""
         x, y, z = data_columns['fs'], data_columns['ss'], data_columns['I']
         if not x:
@@ -269,46 +253,99 @@ class BackgroundSubtraction:
         for X, Y, Z in zip(x, y, z):
             row, col = int(X - xmin), int(Y - ymin)
             intensity[row, col] = Z
-        return data_columns, intensity
-
-        
-    # def _load_high_low(self):
-    #     def paths():
-    #         # return correct high/low paths
-    #         high_low_dir = self._walk_stream()
-    #         files = os.listdir(high_low_dir)
-            
-    #         if len(files) != 2:
-    #             raise Exception("Could not find 'test_high.stream' and 'test_low.stream' in", high_low_dir)
-
-    #         files = [f for f in files if f in ['test_high.stream', 'test_low.stream']]
-    #         high_path, low_path = os.path.join(high_low_dir,  'test_high.stream'), os.path.join(high_low_dir,  'test_low.stream')
-    #         return high_path, low_path
-        
-    #     high_path, low_path = paths()
-    #     high_data, high_intensity = self._load_stream(high_path)
-    #     low_data, low_intensity = self._load_stream(low_path)
-    #     print('SUCCESS!\n\n')
-    #     print('high/low data:\n', high_data, low_data)
-    #     print('high/low intensity', high_intensity, low_intensity)
-        
-        # return high_data, high_intensity, low_data, low_intensity
+        return data_columns, intensity, path
     
+    
+    # overwrite implementation
+    def _duplicate_before(self, file):
+        """Create a copy of the file before overwriting."""
+        overwrite_out_dir = os.path.join(self.waterbackground_dir, "overwrite_out")
+        os.makedirs(overwrite_out_dir, exist_ok=True)
+        filename = os.path.basename(file)
+        new_file = os.path.join(overwrite_out_dir, f"{os.path.splitext(filename)[0]}_copy{os.path.splitext(filename)[1]}")
+        shutil.copyfile(file, new_file)
+        print(f"Duplicate created: {new_file}")
+        return new_file
+        
+    def _compare(self, high, low, *columns):
+        """Compare high/low data and return the compared data for quick debugging."""
+        compare = {}
+        for col in columns:
+            if col in high and col in low:
+                print(f'High: {high[col]} \nLow: {low[col]} \n')
+                compare[col] = (high[col], low[col])
+        return compare
+    
+    def _retrieve(self, data_columns, *columns):
+        """Retrieve specified columns from data_columns."""
+        return {col: data_columns[col] for col in columns if col in data_columns}
+    
+        
+    def _overwrite(self, overwrite_data):
+        """Overwrite the LOW data in the HIGH stream file."""
+        file = self.high_data_path
+        self._duplicate_before(file)
+    
+        overwritten = False
+        print(f"\nStarting to overwrite data in file: {file}")
+        
+        with open(file, 'r') as f:
+            lines = f.readlines()
+            
+        # track if any has been overwritten 
+        overwritten = False
+        
+        # Open the file for writing
+        with open(file, 'w') as f:
+            for line in lines:
+                if line.startswith("   h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel"):
+                    # write the header line
+                    f.write(line)
+                    # avoid IndexError
+                    expected_length = len(overwrite_data['h'])
+                    if all(len(overwrite_data[key]) == expected_length for key in overwrite_data):
+                        # write new data
+                        for i in range(expected_length):
+                            formatted_row = '{:>4} {:>4} {:>4} {:>9.3f} {:>12.3f} {:>12.3f} {:>12.3f} {:>6.2f} {:>6.2f} {:>6}\n'.format(
+                                overwrite_data['h'][i],
+                                overwrite_data['k'][i],
+                                overwrite_data['l'][i],
+                                overwrite_data['I'][i],
+                                overwrite_data['sigmaI'][i],
+                                overwrite_data['peak'][i],
+                                overwrite_data['background'][i],
+                                overwrite_data['fs'][i],
+                                overwrite_data['ss'][i],
+                                overwrite_data['panel'][i]
+                            )
+                            f.write(formatted_row)
+                    overwritten = True
+                else:
+                    f.write(line) # unmodified
+        # log
+        if overwritten:
+            print(f"Data overwritten successfully in file: {file}")
+        else:
+            print(f"No data was overwritten in file: {file}")
+            
+            
     # main
     def main(self):
-        b = BackgroundSubtraction()
-        # for r in b.radii:
-            # b._coordinate_menu(r)
-        # b._display()
-        # b._display_peaks_3d()
-        high_data, high_intensity = b._load_stream('test_high.stream')
-        low_data, low_intensity = b._load_stream('test_low.stream')
-        
-        
-        
-        
+        # no if __name__ == "main""
+
+        # for r in self.radii:
+        #     self._coordinate_menu(r)
+        # self._display()
+        # self._display_peaks_3d()
+
+        high_data, high_intensity, high_path = self._load_stream('test_high.stream')
+        low_data, low_intensity, low_path = self._load_stream('test_low.stream')
+        self._overwrite(self.high_data)    
         
 
+
+    # extra development 
+    
     # peak detection using sklearn
     @staticmethod
     def _args():
@@ -452,7 +489,7 @@ class ArrayRegion:
         return region
      
     
-if __name__ == "__main__":
+# if __name__ == "__main__":
     b = BackgroundSubtraction()
     b.main()
 

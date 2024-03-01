@@ -13,6 +13,7 @@ class PeakThresholdProcessor:
     def get_coordinates_above_threshold(self):  
         coordinates = np.argwhere(self.image_array > self.threshold_value)
         return coordinates
+    
 class ArrayRegion:
     def __init__(self, array):
         self.array = array
