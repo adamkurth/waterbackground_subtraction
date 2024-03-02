@@ -1,9 +1,6 @@
 import os
 from pathlib import Path
-import re
-import shutil
 import h5py as h5
-import argparse  
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -123,8 +120,8 @@ class ImageProcessor:
         plt.grid(True, which='both', color='gray', linestyle='--', linewidth=0.5)
         plt.show()
 
-    def visualize_image_3d(self, img_threshold=0.005):
-        image, coordinates = self.image, self.coordinates
+    def visualize_image_3d(self, coordinates, threshold, img_threshold=0.005):
+        image = self.image
         fig = plt.figure(figsize=(15, 10))
         ax = fig.add_subplot(111, projection='3d')
 
@@ -134,20 +131,25 @@ class ImageProcessor:
         X, Y = np.meshgrid(x, y)
         Z = image
 
-        # Flatten arrays for scatter plot
-        X_flat = X.flatten()
-        Y_flat = Y.flatten()
-        Z_flat = Z.flatten()
+        mask = Z > img_threshold
+        Xmasked, Ymasked, Zmasked = X[mask], Y[mask], Z[mask]
+
+        print(f"Number of points above img_threshold: {np.sum(mask)}")
+        print(f"Number of points in the image: {image.size}")
+        print(f"Threshold value for highlighting: {threshold}")
 
         # Plotting all pixels as a scatter plot
-        pixel_scatter = ax.scatter(X_flat, Y_flat, Z_flat, c=Z_flat, cmap='coolwarm', alpha=0.6, marker='.')
-        
+        pixel_scatter = ax.scatter(Xmasked.flatten(), Ymasked.flatten(), Zmasked.flatten(),
+                                c=Zmasked.flatten(), cmap='viridis', alpha=0.7, marker='.')
+
         # Highlighting coordinates above the threshold
-        flt_peaks = [(y, x) for x, y in coordinates if image[x, y] > self.threshold]
+        flt_peaks = [(y, x) for x, y in coordinates if image[y, x] > threshold]
+        print(f"Number of peaks above threshold: {len(flt_peaks)}")
+
         if flt_peaks:
             p_x, p_y = zip(*flt_peaks)
-            p_z = [image[x, y] for x, y in flt_peaks]
-            ax.scatter(p_y, p_x, p_z, color='lime', s=50, marker='o', label='Highlighted Peaks', edgecolor='black')
+            p_z = [image[y, x] for y, x in flt_peaks]
+            ax.scatter(p_y, p_x, p_z, color='red', s=100, marker='^', label='Highlighted Peaks', edgecolor='white')
 
         # Colorbar and labels
         fig.colorbar(pixel_scatter, shrink=0.5, aspect=5, label='Intensity')
@@ -155,10 +157,9 @@ class ImageProcessor:
         ax.set_xlabel('X-axis')
         ax.set_ylabel('Y-axis')
         ax.set_zlabel('Intensity')
-
         plt.legend()
-        plt.show()          
-        
+        plt.show()
+                
 class PeakThresholdProcessor: 
     def __init__(self, image, threshold_value=0):
         self.image = image
@@ -182,3 +183,4 @@ class PeakThresholdProcessor:
         rows, cols = shape
         return (index // cols, index % cols) 
     
+
