@@ -160,43 +160,43 @@ class PeakThresholdProcessor:
         return (index // cols, index % cols) 
 
 # display functions
-def display(image, coorinates, img_threshold=0.05):
-    mask = image > img_threshold
-    y_vals, x_vals = np.nonzero(mask)
-    z_vals = image[mask]
+# def display(image, coorinates, img_threshold=0.05):
+#     mask = image > img_threshold
+#     y_vals, x_vals = np.nonzero(mask)
+#     z_vals = image[mask]
     
-    # Setup the figure and axis for 3D plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+#     # Setup the figure and axis for 3D plot
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111, projection='3d')
     
-    # Scatter plot of all points above img_threshold
-    scatter = ax.scatter(x_vals, y_vals, z_vals, c=z_vals, cmap='hot', marker='o')
+#     # Scatter plot of all points above img_threshold
+#     scatter = ax.scatter(x_vals, y_vals, z_vals, c=z_vals, cmap='hot', marker='o')
     
-    # Mask for highlighted points
-    highlight_mask = np.zeros_like(image, dtype=bool)
-    highlight_mask[coorinates[:, 1], coorinates[:, 0]] = True
-    highlight_mask &= mask
+#     # Mask for highlighted points
+#     highlight_mask = np.zeros_like(image, dtype=bool)
+#     highlight_mask[coorinates[:, 1], coorinates[:, 0]] = True
+#     highlight_mask &= mask
     
-    # Extract highlighted points
-    y_highlight, x_highlight = np.nonzero(highlight_mask)
-    z_highlight = image[highlight_mask]
+#     # Extract highlighted points
+#     y_highlight, x_highlight = np.nonzero(highlight_mask)
+#     z_highlight = image[highlight_mask]
     
-    # Scatter plot for highlighted points
-    if z_highlight.size > 0:
-        ax.scatter(x_highlight, y_highlight, z_highlight, color='blue', s=100, edgecolor='black', marker='^', label='Highlighted')
+#     # Scatter plot for highlighted points
+#     if z_highlight.size > 0:
+#         ax.scatter(x_highlight, y_highlight, z_highlight, color='blue', s=100, edgecolor='black', marker='^', label='Highlighted')
     
-    # Set labels and title
-    ax.set_xlabel('X Coordinate (ss)')
-    ax.set_ylabel('Y Coordinate (fs)')
-    ax.set_zlabel('Intensity (I)')
-    ax.set_title(f'Scatter Plot of Intensity Values Above {img_threshold}')
+#     # Set labels and title
+#     ax.set_xlabel('X Coordinate (ss)')
+#     ax.set_ylabel('Y Coordinate (fs)')
+#     ax.set_zlabel('Intensity (I)')
+#     ax.set_title(f'Scatter Plot of Intensity Values Above {img_threshold}')
     
-    # Colorbar and legend
-    plt.colorbar(scatter, label='Intensity')
-    ax.legend()
+#     # Colorbar and legend
+#     plt.colorbar(scatter, label='Intensity')
+#     ax.legend()
     
-    # Show plot
-    plt.show()
+#     # Show plot
+#     plt.show()
 
 def display_peaks_3d(image, peaks, threshold, img_threshold=0.005):
     fig = plt.figure(figsize=(15, 10))
