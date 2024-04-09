@@ -19,8 +19,7 @@ class BackgroundSubtraction:
         self.coordinates = self.p._get_coordinates_above_threshold() #naive approach
         self.high_low_stream_dir = self._walk_highlow()
         self.stream_data, self.stream_intensity, self.stream_path = self._load_stream(stream_name)
-        
-        
+    
     # path management
     def _walk(self):
         # returns images/ directory

@@ -5,3 +5,5 @@ images/DATASET1_8_16_23-1.h5
 zip/*
 zip.zip
 src/__pycache__
+src/.ipynb_checkpoints
+src/.DS_Store
