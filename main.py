@@ -16,25 +16,18 @@ ip = imageprocessor.ImageProcessor(test_image, 100)
 # using skimage: peak_local_max
 coordinates = ip.find_peaks()
 
-# # visualize
+## visualize
 # ip.visualize_peaks()
-# ip.visualize_peaks()
-
-# ip.visualize_image_3d(high_coordinates, ip_high.threshold)
-# ip.visualize_image_3d(low_coordinates, ip_low.threshold)
 
 # default background subtraction demo
 b = background.BackgroundSubtraction()
-for r in b.radii:
-    b.coordinate_menu(r)
+# original method
+# for r in b.radii:
+#     b.coordinate_menu(r)
+# streamlined method
+dataframe = b.coordinate_menu_streamlined()
+print(dataframe)
 
 # view waterbackground 
 # functions.display_peaks_3d(b.loaded_image, b.coordinates, b.p.threshold_value)
 # functions.display_peaks_3d_beamstop(b.loaded_image, b.p.threshold_value)
-
-# stream/overwrite adaptation demo
-# USE DH
-
-# dh.overwrite(high_stream)
-
-
