@@ -3,6 +3,7 @@ import os
 from finder import *
 
 base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+images = functions.find_dir(base, 'images') # ~/ ... /cxfel/images
 
 # instance
 dh = datahandler.DataHandler(base)
@@ -11,12 +12,19 @@ dh = datahandler.DataHandler(base)
 high = dh.load_h5_image('9_18_23_high_intensity_3e8keV-2.h5')
 low = dh.load_h5_image('9_18_23_low_intensity_3e7keV-2.h5')
 
-# ImageProcessor
-ip_high = imageprocessor.ImageProcessor(high, 100)
-ip_low = imageprocessor.ImageProcessor(low, 100)
+# must have images high, low to pass into imageprocessor.py
+# get rid of datahandler.py 
 
-high_stream, high_intensity, _ = dh.load_stream_data('test_high.stream')
-low_stream, low_intensity, _  = dh.load_stream_data('test_low.stream')
+
+high_image = functions.load_h5('9_18_23_high_intensity_3e8keV-2.h5')
+low_image = functions.load_h5('9_18_23_low_intensity_3e7keV-2.h5')
+
+# ImageProcessor
+ip_high = imageprocessor.ImageProcessor(high_image, 100)
+ip_low = imageprocessor.ImageProcessor(low_image, 100)
+
+# high_stream, high_intensity, _ = dh.load_stream_data('test_high.stream')
+# low_stream, low_intensity, _  = dh.load_stream_data('test_low.stream')
 
 # using skimage: peak_local_max
 high_coordinates = ip_high.find_peaks()

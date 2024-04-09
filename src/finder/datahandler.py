@@ -3,20 +3,14 @@ import shutil
 from pathlib import Path
 import h5py as h5
 import numpy as np
-
+from finder.functions import load_h5, find_dir
 
 class DataHandler:
     def __init__(self, base_path):
         self.base_path = Path(base_path)
-        self.waterbackground_dir = self.find_dir("waterbackground_subtraction")
-        self.high_low_stream_dir = self.find_dir("high_low_stream")
+        self.waterbackground_dir = self.find_dir(base_path=base_path, dir_name="waterbackground_subtraction")
+        self.high_low_stream_dir = self.find_dir(base_path=base_path, dir_name="high_low_stream")
         
-    def find_dir(self, dir_name):
-        for path in self.base_path.rglob('*'):
-            if path.name == dir_name and path.is_dir():
-                return path
-        raise FileNotFoundError(f"{dir_name} directory not found.")   
-
     def load_h5_image(self, image_name):
         image_path = self.waterbackground_dir / "images" / image_name
         with h5.File(image_path, 'r') as file:

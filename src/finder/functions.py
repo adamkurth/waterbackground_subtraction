@@ -1,10 +1,32 @@
+import os
+from pathlib import Path
+import h5py as h5
 import numpy as np
-import matplotlib.pyplot as plt
-from skimage.feature import peak_local_max
-from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from finder.region import ArrayRegion
+
+def load_h5(image_dir:Path) -> tuple:
+    print("Loading images from:", image_dir)
+    # images with "processed" for background demonstration
+    image_files = [f for f in os.listdir(image_dir) if f.endswith('.h5')]
+    if not image_files:
+        raise FileNotFoundError("No processed image files found in the directory.")
+    random_image = np.random.choice(image_files) # random image
+    image_path = os.path.join(image_dir, random_image)
+    print("Loading image:", random_image)
+    try:
+        with h5.File(image_path, 'r') as file:
+            data = file['entry/data/data'][:]
+        return data, image_path
+    except Exception as e:
+        raise OSError(f"Failed to read {image_path}: {e}")
+
+def find_dir(base_path:str, dir_name:str) -> Path:
+    for path in base_path.rglob('*'):
+        if path.name == dir_name and path.is_dir():
+            return path
+    raise FileNotFoundError(f"{dir_name} directory not found.")   
 
 
 def display_peaks_3d(image, peaks, threshold, img_threshold=0.005):
