@@ -1,23 +1,19 @@
 #!/usr/bin/python3
 import os
+from pathlib import Path
 from finder import *
 
-base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-images = functions.find_dir(base, 'images') # ~/ ... /cxfel/images
+base = Path('../').resolve() # cxfel
+images_dir = Path('../images').resolve() # cxfel/images
+print(f"Base directory: {base}")
+print(f'Images directory: {images_dir} \n')
 
 # instance
 dh = datahandler.DataHandler(base)
 
-# images
-high = dh.load_h5_image('9_18_23_high_intensity_3e8keV-2.h5')
-low = dh.load_h5_image('9_18_23_low_intensity_3e7keV-2.h5')
-
-# must have images high, low to pass into imageprocessor.py
-# get rid of datahandler.py 
-
-
-high_image = functions.load_h5('9_18_23_high_intensity_3e8keV-2.h5')
-low_image = functions.load_h5('9_18_23_low_intensity_3e7keV-2.h5')
+# images)
+high_image = dh.load_h5_image(image_name='9_18_23_high_intensity_3e8keV-2.h5')
+low_image = dh.load_h5_image(image_name='9_18_23_low_intensity_3e7keV-1.h5')
 
 # ImageProcessor
 ip_high = imageprocessor.ImageProcessor(high_image, 100)
@@ -39,8 +35,11 @@ low_coordinates = ip_low.find_peaks()
 
 # default background subtraction demo
 b = background.BackgroundSubtraction()
-for r in b.radii:
-    b.coordinate_menu(r)
+# for r in b.radii:
+#     b.coordinate_menu(r)
+
+data = b.coordinate_menu_streamlined()
+print(data)
 
 # view waterbackground 
 # functions.display_peaks_3d(b.loaded_image, b.coordinates, b.p.threshold_value)

@@ -9,3 +9,6 @@ src/.ipynb_checkpoints
 src/.DS_Store
 finder/__pycache__
 finder/.ipynb_checkpoints
+src/finder/__pycache__/
+src/finder/.ipynb_checkpoints/
+src/finder/.DS_Store

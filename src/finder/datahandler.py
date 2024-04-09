@@ -6,18 +6,22 @@ import numpy as np
 from finder.functions import load_h5, find_dir
 
 class DataHandler:
-    def __init__(self, base_path):
+    def __init__(self, base_path:Path) -> None:
         self.base_path = Path(base_path)
-        self.waterbackground_dir = self.find_dir(base_path=base_path, dir_name="waterbackground_subtraction")
-        self.high_low_stream_dir = self.find_dir(base_path=base_path, dir_name="high_low_stream")
+        self.waterbackground_dir = find_dir(base_path=base_path, dir_name="waterbackground_subtraction")
+        self.high_low_stream_dir = find_dir(base_path=base_path, dir_name="high_low_stream")
         
-    def load_h5_image(self, image_name):
-        image_path = self.waterbackground_dir / "images" / image_name
-        with h5.File(image_path, 'r') as file:
-            data = file['entry/data/data'][:]
-        return data
+    def load_h5_image(self, image_name:str) -> np.array:
+        images_dir = Path(self.waterbackground_dir / "images").resolve()
+        image_path = Path(images_dir / image_name)
+        print(f"\nLoading image: {image_name}")
+        print(f"Loading images from: {images_dir}")
+        if not image_path.exists():
+            raise FileNotFoundError(f"Image file {image_name} not found.")
+        with h5.File(image_path, 'r') as f:
+            return f['entry/data/data'][:]
     
-    def load_stream_data(self, stream_name):
+    def load_stream_data(self, stream_name:str, max_fs:int=0, max_ss:int=0) -> tuple:
         stream_path = self.high_low_stream_dir / stream_name
         print(f"\nLoading file: {stream_name}")
         with open(stream_path, 'r') as stream:
@@ -58,7 +62,7 @@ class DataHandler:
             print(f"File {stream_name} loaded successfully.\n")
             return self.process_stream_data(data_columns, stream_path)
           
-    def process_stream_data(self, data_columns, stream_path):
+    def process_stream_data(self, data_columns, stream_path:Path) -> tuple:
         """Process loaded stream data to calculate intensity matrix."""
         x, y, z = data_columns['fs'], data_columns['ss'], data_columns['I']
         if not x:
@@ -72,7 +76,7 @@ class DataHandler:
         return data_columns, intensity, stream_path
     
     # overwrite implementation
-    def duplicate_before(self, file):
+    def duplicate_before(self, file:str) -> str:
         """Create a copy of the file before overwriting."""
         overwrite_out_dir = os.path.join(self.waterbackground_dir, "overwrite_out")
         os.makedirs(overwrite_out_dir, exist_ok=True)
@@ -82,7 +86,7 @@ class DataHandler:
         print(f"Duplicate created: {new_file}")
         return new_file
 
-    def compare_debug(self, high, low, *columns):
+    def compare_debug(self, high, low, *columns:tuple):
         """Compare high/low data and return the compared data for quick debugging."""
         compare = {}
         for col in columns:
