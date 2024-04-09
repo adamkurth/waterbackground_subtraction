@@ -1,41 +1,27 @@
 #!/usr/bin/python3
 import os
+from pathlib import Path
 from finder import *
 
-base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-images = functions.find_dir(base, 'images') # ~/ ... /cxfel/images
+base = Path('../').resolve() # cxfel
+images_dir = Path('../images').resolve() # cxfel/images
+print(f"Base directory: {base}")
+print(f'Images directory: {images_dir} \n')
 
-# instance
-dh = datahandler.DataHandler(base)
-
-# images
-high = dh.load_h5_image('9_18_23_high_intensity_3e8keV-2.h5')
-low = dh.load_h5_image('9_18_23_low_intensity_3e7keV-2.h5')
-
-# must have images high, low to pass into imageprocessor.py
-# get rid of datahandler.py 
-
-
-high_image = functions.load_h5('9_18_23_high_intensity_3e8keV-2.h5')
-low_image = functions.load_h5('9_18_23_low_intensity_3e7keV-2.h5')
+test_image, image_path = functions.load_h5(images_dir) #random 
 
 # ImageProcessor
-ip_high = imageprocessor.ImageProcessor(high_image, 100)
-ip_low = imageprocessor.ImageProcessor(low_image, 100)
-
-# high_stream, high_intensity, _ = dh.load_stream_data('test_high.stream')
-# low_stream, low_intensity, _  = dh.load_stream_data('test_low.stream')
+ip = imageprocessor.ImageProcessor(test_image, 100)
 
 # using skimage: peak_local_max
-high_coordinates = ip_high.find_peaks()
-low_coordinates = ip_low.find_peaks()
+coordinates = ip.find_peaks()
 
 # # visualize
-# ip_high.visualize_peaks()
-# ip_low.visualize_peaks()
+# ip.visualize_peaks()
+# ip.visualize_peaks()
 
-# ip_high.visualize_image_3d(high_coordinates, ip_high.threshold)
-# ip_low.visualize_image_3d(low_coordinates, ip_low.threshold)
+# ip.visualize_image_3d(high_coordinates, ip_high.threshold)
+# ip.visualize_image_3d(low_coordinates, ip_low.threshold)
 
 # default background subtraction demo
 b = background.BackgroundSubtraction()

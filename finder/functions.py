@@ -6,14 +6,14 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from finder.region import ArrayRegion
 
-def load_h5(image_dir:Path) -> tuple:
-    print("Loading images from:", image_dir)
+def load_h5(images_dir:Path) -> tuple:
+    print("Loading images from:", images_dir)
     # images with "processed" for background demonstration
-    image_files = [f for f in os.listdir(image_dir) if f.endswith('.h5')]
+    image_files = [f for f in os.listdir(images_dir) if f.endswith('.h5') and f.startswith('img')]
     if not image_files:
         raise FileNotFoundError("No processed image files found in the directory.")
     random_image = np.random.choice(image_files) # random image
-    image_path = os.path.join(image_dir, random_image)
+    image_path = os.path.join(images_dir, random_image)
     print("Loading image:", random_image)
     try:
         with h5.File(image_path, 'r') as file:
@@ -27,7 +27,6 @@ def find_dir(base_path:str, dir_name:str) -> Path:
         if path.name == dir_name and path.is_dir():
             return path
     raise FileNotFoundError(f"{dir_name} directory not found.")   
-
 
 def display_peaks_3d(image, peaks, threshold, img_threshold=0.005):
     fig = plt.figure(figsize=(15, 10))

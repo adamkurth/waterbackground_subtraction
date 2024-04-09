@@ -2,27 +2,27 @@ import os
 from pathlib import Path
 import h5py as h5
 import numpy as np
-import matplotlib.pyplot as plt
 from skimage.feature import peak_local_max
 from scipy.signal import find_peaks
-import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from finder.threshold import PeakThresholdProcessor
 
+import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 class ImageProcessor: 
-    def __init__(self, image, threshold):
+    def __init__(self, image:np.array, threshold:int):
         self.image = image
         self.dim = image.shape
         self.coordinates = self.find_peaks()
         self.p = PeakThresholdProcessor(self.image, threshold_value=threshold)
         self.threshold = self.p.threshold_value
 
-    def find_peaks(self, min_distance=10, threshold_abs=250):
+    def find_peaks(self, min_distance:int=10, threshold_abs:int=250) -> np.array:
         coordinates = peak_local_max(self.image, min_distance=min_distance, threshold_abs=threshold_abs)
         return coordinates
     
-    def _display_peaks_2d(self, img_threshold=0.005):
+    def _display_peaks_2d(self, img_threshold:float=0.005) -> None:
         # for visualization exclusion diameter is okay
         image, peaks = self.loaded_image, self.peaks
         plt.figure(figsize=(10, 10))
@@ -39,11 +39,10 @@ class ImageProcessor:
         plt.ylabel('Y-axis (fs)')
         plt.show()
 
-    def visualize_peaks(self):
-        coordinates = self.coordinates
+    def visualize_peaks(self) -> None:
         plt.figure(figsize=(10, 10))
-        plt.imshow(self.image, cmap='inferno')
-        plt.scatter(coordinates[:, 1], coordinates[:, 0], color='cyan', s=100, edgecolor='white', marker='o', label='Detected Peaks')
+        plt.imshow(self.image, cmap='viridis')
+        plt.scatter(self.coordinates[:, 1], self.coordinates[:, 0], s=100, marker='o', label='Detected Peaks')
         plt.title("Detected Peaks in Image")
         plt.colorbar(label='Intensity')
         plt.legend()
@@ -51,7 +50,7 @@ class ImageProcessor:
         plt.grid(True, which='both', color='gray', linestyle='--', linewidth=0.5)
         plt.show()
 
-    def visualize_image_3d(self, coordinates, threshold, img_threshold=0.005):
+    def visualize_image_3d(self, coordinates:np.array, threshold:int, img_threshold:float=0.005) -> None:
         image = self.image
         fig = plt.figure(figsize=(15, 10))
         ax = fig.add_subplot(111, projection='3d')
@@ -90,4 +89,3 @@ class ImageProcessor:
         ax.set_zlabel('Intensity')
         plt.legend()
         plt.show()
-            
