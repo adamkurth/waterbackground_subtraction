@@ -1,9 +1,4 @@
+__pycache__
+.ipynb_checkpoints
 .DS_Store
-images/9_18_23_high_intensity_3e8keV-1_test.h5
-images/9_18_23_low_intensity_3e7keV-2.h5
-images/DATASET1_8_16_23-1.h5
-zip/*
-zip.zip
-src/__pycache__
-src/.ipynb_checkpoints
-src/.DS_Store
+finder/__pycache__

@@ -4,16 +4,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.signal import find_peaks
+from pathlib import Path
 from finder.threshold import PeakThresholdProcessor
 from finder.region import ArrayRegion
 from finder.functions import load_h5
 
 class BackgroundSubtraction:
     def __init__(self):
-        self.cxfel_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        self.images_dir = self.walk()
+        self.cxfel_root = Path('../').resolve()
+        self.images_dir = Path('../images').resolve()
+        # self.cxfel_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        # self.images_dir = self.walk()
         self.radii = [1, 2, 3, 4]
-        self.loaded_image, self.image_path = self.load_h5(self.images_dir)
+        self.loaded_image, self.image_path = load_h5(images_dir=self.images_dir)
         self.p = PeakThresholdProcessor(self.loaded_image, 1000)
         self.coordinates = self.p.get_coordinates_above_threshold()
         # self.peaks = self._find_peaks(use_1d=False)
