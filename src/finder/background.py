@@ -6,6 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from scipy.signal import find_peaks
 from finder.threshold import PeakThresholdProcessor
 from finder.region import ArrayRegion
+from finder.functions import load_h5
 
 class BackgroundSubtraction:
     def __init__(self):
@@ -24,23 +25,7 @@ class BackgroundSubtraction:
             if "images" in dirs:
                 return os.path.join(root, "images")
         raise Exception("Could not find the 'images' directory starting from", start)
-
-    def load_h5(self, image_dir):
-        print("Loading images from:", image_dir)
-        # images with "processed" for background demonstration
-        image_files = [f for f in os.listdir(image_dir) if f.endswith('.h5')]
-        if not image_files:
-            raise FileNotFoundError("No processed image files found in the directory.")
-        random_image = np.random.choice(image_files) # random image
-        image_path = os.path.join(image_dir, random_image)
-        print("Loading image:", random_image)
-        try:
-            with h5.File(image_path, 'r') as file:
-                data = file['entry/data/data'][:]
-            return data, image_path
-        except Exception as e:
-            raise OSError(f"Failed to read {image_path}: {e}")
-
+    
     # default background subtraction
     def coordinate_menu(self, r):
         print(f"\nCoordinates above given threshold: with radius: {r}")
