@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 import h5py as h5
 import numpy as np
-from finder.functions import load_h5, find_dir
+from .functions import load_h5, find_dir
 
 class DataHandler:
     def __init__(self, base_path):

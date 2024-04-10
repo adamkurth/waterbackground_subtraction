@@ -5,109 +5,99 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.signal import find_peaks
 import pandas as pd
-from typing import Tuple
+from typing import Tuple, List
 from pathlib import Path
-from finder.threshold import PeakThresholdProcessor
-from finder.region import ArrayRegion
-from finder.functions import load_h5
+from .threshold import PeakThresholdProcessor
+from .region import ArrayRegion
+from .functions import load_h5
 
 class BackgroundSubtraction:
-    def __init__(self):
-        self.cxfel_root = Path('../').resolve()
-        self.images_dir = Path('../images').resolve()
-        # self.cxfel_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        # self.images_dir = self.walk()
+    def __init__(self, threshold: int = 1000) -> None:
+        self.threshold = threshold
         self.radii = [1, 2, 3, 4]
-        self.loaded_image, self.image_path = load_h5(images_dir=self.images_dir)
-        self.p = PeakThresholdProcessor(image=self.loaded_image, threshold_value=1000)
-        self.coordinates = self.p.get_coordinates_above_threshold()
         
-    def walk(self):
-        # returns path to cxfel/images
-        start = self.cxfel_root
-        for root, dirs, files in os.walk(start):
-            if "images" in dirs:
-                return os.path.join(root, "images")
-        raise Exception("Could not find the 'images' directory starting from", start)
-    
-    # default background subtraction (w/user input)
-    def coordinate_menu(self, r:int):
-        print(f"\nCoordinates above given threshold: with radius: {r}")
-        coordinates = self.coordinates
-        for i, (x, y) in enumerate(coordinates):
-            print(f"{i+1}. ({x}, {y})")
+    def process_single_image(self, image_path: str) -> pd.DataFrame:
+        loaded_image, _ = load_h5(file_path=image_path)
+        # print(f"Image loaded with shape: {loaded_image.shape}")  # Debugging line
+
+        p = PeakThresholdProcessor(image=loaded_image, threshold_value=self.threshold)
+        coordinates = p.get_coordinates_above_threshold()
+        # print(f"Found {len(coordinates)} coordinates above threshold")  # Debugging line
         
-        choice = input("\nWhich coordinate do you want to process? (or 'q' to quit)\n")
-        if choice.lower() == 'q':
-            print("Quitting...")
-            return
-        try:
-            index = int(choice)-1 
-            if 0 <= index < len(coordinates):
-                x, y = coordinates[index]
-                self.process_region(coord=(x, y), r=r)
-            else:
-                print("Invalid index.")
-        except ValueError:
-            print("Invalid input. Enter a number or 'q' to quit.")
-    
-    # adapted coordinate_menu to all regions
-    def coordinate_menu_streamlined(self):
-        data = []
-        for coord in self.coordinates:
-            for r in self.radii:
-                result = self.process_region_streamlined(coord, r)
-                data.append(result)
-        return pd.DataFrame(data)
-    
-    def process_region_streamlined(self, coord:Tuple[int, int], r:int) -> None:
-        (x, y), sum_ = coord, 0
-        a = ArrayRegion(array=self.loaded_image)
-        region = a.extract_region(x_center=x, y_center=y, region_size=r) #for analysis 
-        neighborhood = a.extract_region(x_center=x, y_center=y, region_size=5) #for reference
-        
-        # calc average intensity excluding the center pixel
-        for i in range(len(region)):
-            for j in range(len(region[i])):
-                if i != r or j != r:  # Skip the center element
-                    sum_ += region[i][j]
-        count = (len(region)**2) - 1  # Exclude center pixel
-        avg = sum_ / count if count > 0 else 0
-        peak_intensity_estimate = region[r][r] - avg
+        if coordinates.any():
+            data = [self.analyze_region(loaded_image, coord, r) for coord in coordinates for r in self.radii]
+            return pd.DataFrame(data)
+        else:
+            # print("No coordinates found above threshold. Returning empty DataFrame.")
+            return pd.DataFrame()
+
+    def analyze_region(self, image: np.ndarray, coord: Tuple[int, int], r: int) -> dict:
+        """Analyze a specific region around a coordinate with given radius."""
+        x, y = coord
+        a = ArrayRegion(array=image)
+        region = a.extract_region(x_center=x, y_center=y, region_size=r)
+        sum_excluding_center = np.sum(region) - region[r][r]
+        count_excluding_center = region.size - 1
+        avg_intensity = sum_excluding_center / count_excluding_center if count_excluding_center > 0 else 0
+        peak_intensity_estimate = region[r][r] - avg_intensity
+
         return {
-            'coordinate': (x, y),
+            'coordinate': (x,y),
             'radius': r,
-            'average_intensity': avg,
+            'average_intensity': avg_intensity,
             'center_pixel_intensity': region[r][r],
             'peak_intensity_estimate': peak_intensity_estimate
         }
     
-    def process_region(self, coord:Tuple[int, int], r:int) -> None:
-        (x, y), sum_ = coord, 0
-        print(f"\nProcessing coordinate: ({x}, {y})")
-        print(f"Radius: {r}")
-        
-        a = ArrayRegion(self.loaded_image)
-        region = a.extract_region(x_center=x, y_center=y, region_size=r)
-        neighborhood = a.extract_region(x_center=x, y_center=y, region_size=5)
+    def process_overlay_images(self, overlay_files: List[str]) -> pd.DataFrame:
+        """Process a list of overlay image files."""
+        all_data = [self.process_single_image(path) for path in overlay_files]
+        return pd.concat(all_data, ignore_index=True)
     
-        np.set_printoptions(precision=4, suppress=True)
-        print('Neighborhood:')
-        print(neighborhood)
-        print(f"\nRegion with radius {r} extracted for coordinate ({x}, {y}):\n")
-        print(region)
-        print("\n")
+    def main(self, overlay_files: List[str]):
+        # Example processing a single file (first file for demonstration)
+        single_image_data = self.process_single_image(image_path=overlay_files[0])
+        print("Single Image Data:")
+        print(single_image_data)
         
-        # calc average intensity excluding the center pixel
-        for i in range(len(region)):
-            for j in range(len(region[i])):
-                if i != r or j != r:  # Skip the center element
-                    element = region[i][j]
-                    print(f"Processing element at ({i}, {j}): {element}")
-                    sum_ += element
-        count = len(region) * len(region[0]) - 1  # Exclude the center pixel
-        avg = sum_ / count if count > 0 else 0
-        print(f"Average intensity of region: {avg}")
-        print(f"Center pixel intensity: {region[r][r]}")
-        print(f"Peak intensity Estimate: {region[r][r] - avg}")
-        print()
+        self.visualize_peaks(image_path=overlay_files[0], data=single_image_data)
+
+        # # Processing all overlay files
+        # batch_data = self.process_overlay_images(overlay_files=overlay_files)
+        # print("Batch Overlay Files Data:")
+        # print(batch_data)
+        
+        # return batch_data
+    
+    def visualize_peaks(self, image_path:str, data:pd.DataFrame):
+        loaded_image, _ = load_h5(file_path=image_path)
+        
+        fig = plt.figure(figsize=(10, 7))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # Convert coordinates from strings to tuples
+        data['coordinate'] = data['coordinate'].apply(lambda coord: coord if isinstance(coord, tuple) else eval(coord))
+
+        x_coords = data['coordinate'].apply(lambda coord: coord[0])
+        y_coords = data['coordinate'].apply(lambda coord: coord[1])
+        z_coords = data['peak_intensity_estimate']
+
+        # Plotting the original image at low opacity
+        x_img, y_img = np.meshgrid(range(loaded_image.shape[1]), range(loaded_image.shape[0]))
+        z_img = np.zeros(loaded_image.shape)
+
+        ax.scatter(x_img, y_img, z_img, c='gray', alpha=0.1)  # Plot image at low opacity
+
+        # Plotting the estimated peak intensities as scatter points
+        scatter = ax.scatter(y_coords, x_coords, z_coords, c=z_coords, cmap='viridis', marker='o', depthshade=False)
+
+        ax.set_xlabel('X Label')
+        ax.set_ylabel('Y Label')
+        ax.set_zlabel('Estimated Peak Intensity')
+
+        # Adding a color bar to show the scale of peak intensities
+        fig.colorbar(scatter, ax=ax, label='Peak Intensity Estimate')
+
+        plt.show()
+
+    
