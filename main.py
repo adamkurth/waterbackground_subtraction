@@ -24,6 +24,7 @@ b = background.BackgroundSubtraction()
 # original method
 # for r in b.radii:
 #     b.coordinate_menu(r)
+
 # streamlined method
 dataframe = b.coordinate_menu_streamlined()
 print(dataframe)
