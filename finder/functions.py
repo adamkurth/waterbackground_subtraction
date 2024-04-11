@@ -89,3 +89,6 @@ def display_peaks_3d_beamstop(image, threshold_value):
     ax.set_zlabel('Intensity')
     plt.legend()
     plt.show()
+    
+    
+    
