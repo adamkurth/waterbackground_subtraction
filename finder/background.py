@@ -6,7 +6,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from scipy.signal import find_peaks
 import pandas as pd
 from typing import Tuple, List
-from pathlib import Path
+from pathlib import Path,Union
+import torch
 from .threshold import PeakThresholdProcessor
 from .region import ArrayRegion
 from .functions import load_h5
@@ -15,7 +16,30 @@ class BackgroundSubtraction:
     def __init__(self, threshold: int = 1000) -> None:
         self.threshold = threshold
         self.radii = [1, 2, 3, 4]
-        
+            
+    """torch.tensor below"""
+    def process_tensor(self, tensors:torch.tensor) -> pd.DataFrame:
+        """Process a list of tensors."""
+        # provide tensor, as input and cast to numpy array.
+        # loaded_image = input_tensor.cpu().numpy()     
+        all_data = [self.process_single_tensor(input_tensor=tensor) for tensor in tensors]
+        return pd.concat(all_data, ignore_index=True)
+    
+    def process_single_tensor(self, input_tensor: str) -> pd.DataFrame:
+        """Process a single tensor."""
+        loaded_image = input_tensor.cpu().numpy()
+        print(f'Tensor -> Numpy: {loaded_image}')
+        p = PeakThresholdProcessor(image=loaded_image, threshold_value=self.threshold)
+        coordinates = p.get_coordinates_above_threshold()
+                
+        if coordinates.any():
+            data = [self.analyze_region(loaded_image, coord, r) for coord in coordinates for r in self.radii]
+            return pd.DataFrame(data)
+        else:
+            # print("No coordinates found above threshold. Returning empty DataFrame.")
+            return pd.DataFrame()
+
+    """numpy below"""
     def process_single_image(self, image_path: str) -> pd.DataFrame:
         loaded_image, _ = load_h5(file_path=image_path)
         # print(f"Image loaded with shape: {loaded_image.shape}")  # Debugging line
@@ -32,42 +56,61 @@ class BackgroundSubtraction:
             return pd.DataFrame()
 
     def analyze_region(self, image: np.ndarray, coord: Tuple[int, int], r: int) -> dict:
-        """Analyze a specific region around a coordinate with given radius."""
         x, y = coord
         a = ArrayRegion(array=image)
         region = a.extract_region(x_center=x, y_center=y, region_size=r)
-        sum_excluding_center = np.sum(region) - region[r][r]
-        count_excluding_center = region.size - 1
-        avg_intensity = sum_excluding_center / count_excluding_center if count_excluding_center > 0 else 0
-        peak_intensity_estimate = region[r][r] - avg_intensity
+        
+        if region.size > 0:
+            sum_excluding_center = np.sum(region) - region[r][r] if r < region.shape[0] else 0
+            count_excluding_center = region.size - 1
+            avg_intensity = sum_excluding_center / count_excluding_center if count_excluding_center > 0 else 0
+            peak_intensity_estimate = region[r][r] - avg_intensity if r < region.shape[0] else 0
+        else:
+            print(f"No data in region for coordinates {coord} with radius {r}")
+            return {}
 
         return {
-            'coordinate': (x,y),
+            'coordinate': (x, y),
             'radius': r,
             'average_intensity': avg_intensity,
-            'center_pixel_intensity': region[r][r],
+            'center_pixel_intensity': region[r][r] if r < region.shape[0] else 0,
             'peak_intensity_estimate': peak_intensity_estimate
         }
-    
+
     def process_overlay_images(self, overlay_files: List[str]) -> pd.DataFrame:
         """Process a list of overlay image files."""
         all_data = [self.process_single_image(path) for path in overlay_files]
         return pd.concat(all_data, ignore_index=True)
     
-    def main(self, overlay_files: List[str]):
-        # Example processing a single file (first file for demonstration)
-        single_image_data = self.process_single_image(image_path=overlay_files[0])
-        print("Single Image Data:")
-        print(single_image_data)
-        
-        self.visualize_peaks(image_path=overlay_files[0], data=single_image_data)
 
-        # # Processing all overlay files
-        # batch_data = self.process_overlay_images(overlay_files=overlay_files)
-        # print("Batch Overlay Files Data:")
-        # print(batch_data)
+    def main(self, inputs: Union[List[str], torch.tensor]):
+        try: 
+            if isinstance(inputs, list):
+                overlay_files = inputs
+            if isinstance(inputs, torch.tensor):
+                tensors = inputs
+        except:
+            raise Exception("Invalid input type. Please provide a list of overlay image file paths or a list of tensors.")
+            
+        if overlay_files:
+            # Example processing a single file (first file for demonstration)
+            # single_image_data = self.process_single_image(image_path=overlay_files[0])
+            # print("Single Image Data:")
+            # print(single_image_data)
+            
+            # self.visualize_peaks(image_path=overlay_files[0], data=single_image_data)
+
+            # Processing all overlay files
+            batch_data = self.process_overlay_images(overlay_files=overlay_files)
+            print("Batch Overlay Files Data:")
+            print(batch_data)
+            
+        elif tensors:
+            batch_data = self.process_tensor(tensors=tensors)
+            print("Batch Overlay Files Data:")
+            print(batch_data)
         
-        # return batch_data
+        return batch_data
     
     def visualize_peaks(self, image_path:str, data:pd.DataFrame):
         loaded_image, _ = load_h5(file_path=image_path)
