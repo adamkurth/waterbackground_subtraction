@@ -111,9 +111,12 @@ class BackgroundSubtraction:
             print(batch_data)
         
         return batch_data
-    
-    def visualize_peaks(self, image_path:str, data:pd.DataFrame):
-        loaded_image, _ = load_h5(file_path=image_path)
+
+    def visualize_peaks(self, input, data:pd.DataFrame):
+        if isinstance(input, str):
+            loaded_image, _ = load_h5(file_path=input)
+        elif isinstance(input, torch.tensor):
+            loaded_image = input.cpu().numpy()
         
         fig = plt.figure(figsize=(10, 7))
         ax = fig.add_subplot(111, projection='3d')
@@ -142,5 +145,39 @@ class BackgroundSubtraction:
         fig.colorbar(scatter, ax=ax, label='Peak Intensity Estimate')
 
         plt.show()
+
+    
+
+    
+    # def visualize_peaks(self, image_path:str, data:pd.DataFrame):
+    #     loaded_image, _ = load_h5(file_path=image_path)
+        
+    #     fig = plt.figure(figsize=(10, 7))
+    #     ax = fig.add_subplot(111, projection='3d')
+
+    #     # Convert coordinates from strings to tuples
+    #     data['coordinate'] = data['coordinate'].apply(lambda coord: coord if isinstance(coord, tuple) else eval(coord))
+
+    #     x_coords = data['coordinate'].apply(lambda coord: coord[0])
+    #     y_coords = data['coordinate'].apply(lambda coord: coord[1])
+    #     z_coords = data['peak_intensity_estimate']
+
+    #     # Plotting the original image at low opacity
+    #     x_img, y_img = np.meshgrid(range(loaded_image.shape[1]), range(loaded_image.shape[0]))
+    #     z_img = np.zeros(loaded_image.shape)
+
+    #     ax.scatter(x_img, y_img, z_img, c='gray', alpha=0.1)  # Plot image at low opacity
+
+    #     # Plotting the estimated peak intensities as scatter points
+    #     scatter = ax.scatter(y_coords, x_coords, z_coords, c=z_coords, cmap='viridis', marker='o', depthshade=False)
+
+    #     ax.set_xlabel('X Label')
+    #     ax.set_ylabel('Y Label')
+    #     ax.set_zlabel('Estimated Peak Intensity')
+
+    #     # Adding a color bar to show the scale of peak intensities
+    #     fig.colorbar(scatter, ax=ax, label='Peak Intensity Estimate')
+
+    #     plt.show()
 
     
