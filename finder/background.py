@@ -83,16 +83,8 @@ class BackgroundSubtraction:
         return pd.concat(all_data, ignore_index=True)
     
 
-    def main(self, inputs: List[str] | torch.Tensor):
-        try: 
-            if isinstance(inputs, list):
-                overlay_files = inputs
-            if isinstance(inputs, torch.Tensor):
-                tensors = inputs    
-        except:
-            raise Exception("Invalid input type. Please provide a list of overlay image file paths or a list of tensors.")
-            
-        if overlay_files:
+    def main(self, inputs: List[str] | torch.Tensor):   
+        if isinstance(inputs, list):
             # Example processing a single file (first file for demonstration)
             # single_image_data = self.process_single_image(image_path=overlay_files[0])
             # print("Single Image Data:")
@@ -101,12 +93,12 @@ class BackgroundSubtraction:
             # self.visualize_peaks(image_path=overlay_files[0], data=single_image_data)
 
             # Processing all overlay files  
-            batch_data = self.process_overlay_images(overlay_files=overlay_files)
+            batch_data = self.process_overlay_images(overlay_files=inputs)
             print("Batch Overlay Files Data:")
             print(batch_data)
             
-        elif tensors:
-            batch_data = self.process_tensor(tensors=tensors)
+        elif isinstance(inputs, torch.Tensor):
+            batch_data = self.process_tensor(tensors=inputs)
             print("Batch Overlay Files Data:")
             print(batch_data)
         
