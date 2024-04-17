@@ -115,7 +115,7 @@ class BackgroundSubtraction:
     def visualize_peaks(self, input, data:pd.DataFrame):
         if isinstance(input, str):
             loaded_image, _ = load_h5(file_path=input)
-        elif isinstance(input, torch.tensor):
+        elif isinstance(input, torch.Tensor):
             loaded_image = input.cpu().numpy()
         
         fig = plt.figure(figsize=(10, 7))
