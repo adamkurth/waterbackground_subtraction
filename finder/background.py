@@ -18,7 +18,7 @@ class BackgroundSubtraction:
         self.radii = [1, 2, 3, 4]
             
     """torch.tensor below"""
-    def process_tensor(self, tensors:torch.tensor) -> pd.DataFrame:
+    def process_tensor(self, tensors:torch.Tensor) -> pd.DataFrame:
         """Process a list of tensors."""
         # provide tensor, as input and cast to numpy array.
         # loaded_image = input_tensor.cpu().numpy()     
@@ -83,11 +83,11 @@ class BackgroundSubtraction:
         return pd.concat(all_data, ignore_index=True)
     
 
-    def main(self, inputs: Union[List[str], torch.tensor]):
+    def main(self, inputs: Union[List[str], torch.Tensor]):
         try: 
             if isinstance(inputs, list):
                 overlay_files = inputs
-            if isinstance(inputs, torch.tensor):
+            if isinstance(inputs, torch.Tensor):
                 tensors = inputs
         except:
             raise Exception("Invalid input type. Please provide a list of overlay image file paths or a list of tensors.")
