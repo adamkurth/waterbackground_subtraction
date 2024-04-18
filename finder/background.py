@@ -36,7 +36,7 @@ class BackgroundSubtraction:
             data = [self.analyze_region(loaded_image, coord, r) for coord in coordinates for r in self.radii]
             return pd.DataFrame(data)
         else:
-            # print("No coordinates found above threshold. Returning empty DataFrame.")
+            print("No coordinates found above threshold. Returning empty DataFrame.")
             return pd.DataFrame()
 
     """numpy below"""
@@ -56,7 +56,7 @@ class BackgroundSubtraction:
             return pd.DataFrame()
 
     def analyze_region(self, image: np.ndarray, coord: Tuple[int, int], r: int) -> dict:
-        x, y = coord
+        x, y = coord[0:2] # added [0:2] to avoid error, as coord is a tuple of 3 elements
         a = ArrayRegion(array=image)
         region = a.extract_region(x_center=x, y_center=y, region_size=r)
         
