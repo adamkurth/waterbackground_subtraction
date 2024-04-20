@@ -25,13 +25,18 @@ class BackgroundSubtraction:
         all_data = [self.process_single_tensor(input_tensor=tensor) for tensor in tensors]
         return pd.concat(all_data, ignore_index=True)
     
-    def process_single_tensor(self, input_tensor: str) -> pd.DataFrame:
+    def process_single_tensor(self, input_tensor: torch.Tensor) -> pd.DataFrame:
         """Process a single tensor."""
-        loaded_image = input_tensor.cpu().numpy()
+        # loaded_image = input_tensor.cpu().numpy()
+        
+        print(f"----- pre-loaded image size : {input_tensor.size()} -----")   
+        loaded_image = input_tensor.squeeze(0).cpu().numpy()
+        print(f"----- loaded image size : {loaded_image.shape} -----") 
+        
         print(f'Tensor -> Numpy: {loaded_image}')
+        
         p = PeakThresholdProcessor(image=loaded_image, threshold_value=self.threshold)
-        coordinates = p.get_coordinates_above_threshold()
-                
+        coordinates = p.get_coordinates_above_threshold()    
         if coordinates.any():
             data = [self.analyze_region(loaded_image, coord, r) for coord in coordinates for r in self.radii]
             return pd.DataFrame(data)
@@ -66,6 +71,9 @@ class BackgroundSubtraction:
             avg_intensity = sum_excluding_center / count_excluding_center if count_excluding_center > 0 else 0
             peak_intensity_estimate = region[r][r] - avg_intensity if r < region.shape[0] else 0
         else:
+            
+            # Add BC 
+            
             print(f"No data in region for coordinates {coord} with radius {r}")
             return {}
 
