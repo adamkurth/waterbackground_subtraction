@@ -4,23 +4,14 @@ import h5py as h5
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from finder.region import ArrayRegion
+from .region import ArrayRegion
 
-def load_h5(images_dir:Path) -> tuple:
-    print("Loading images from:", images_dir)
-    # images with "processed" for background demonstration
-    image_files = [f for f in os.listdir(images_dir) if f.endswith('.h5') and f.startswith('img')]
-    if not image_files:
-        raise FileNotFoundError("No processed image files found in the directory.")
-    random_image = np.random.choice(image_files) # random image
-    image_path = os.path.join(images_dir, random_image)
-    print("Loading image:", random_image)
-    try:
-        with h5.File(image_path, 'r') as file:
-            data = file['entry/data/data'][:]
-        return data, image_path
-    except Exception as e:
-        raise OSError(f"Failed to read {image_path}: {e}")
+def load_h5(file_path:str) -> tuple:
+    """Load and return the image data from a single .h5 file."""
+    with h5.File(file_path, 'r') as file:
+        # Assuming the dataset name in your .h5 files is 'image'
+        data = file['entry/data/data'][:]
+    return data, file_path
 
 def find_dir(base_path:str, dir_name:str) -> Path:
     for path in base_path.rglob('*'):
@@ -98,3 +89,6 @@ def display_peaks_3d_beamstop(image, threshold_value):
     ax.set_zlabel('Intensity')
     plt.legend()
     plt.show()
+    
+    
+    
