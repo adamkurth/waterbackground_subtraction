@@ -3,7 +3,7 @@ from pathlib import Path
 import h5py as h5
 import numpy as np
 from skimage.feature import peak_local_max
-from scipy.signal import find_peaks
+# from scipy.signal import find_peaks
 from mpl_toolkits.mplot3d import Axes3D
 from .threshold import PeakThresholdProcessor
 
