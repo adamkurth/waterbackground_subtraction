@@ -24,7 +24,8 @@ class BackgroundSubtraction:
         # loaded_image = input_tensor.cpu().numpy()     
         all_data = [self.process_single_tensor(input_tensor=tensor) for tensor in tensors]
         return pd.concat(all_data, ignore_index=True)
-    
+
+
     def process_single_tensor(self, input_tensor: torch.Tensor) -> pd.DataFrame:
         """Process a single tensor."""
         # loaded_image = input_tensor.cpu().numpy()
