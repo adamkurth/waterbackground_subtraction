@@ -91,7 +91,7 @@ class BackgroundSubtraction:
         return pd.concat(all_data, ignore_index=True)
     
 
-    def main(self, inputs: List[str] | torch.Tensor):   
+    def main(self, inputs):   
         if isinstance(inputs, list):
             # Example processing a single file (first file for demonstration)
             # single_image_data = self.process_single_image(image_path=overlay_files[0])
@@ -112,7 +112,7 @@ class BackgroundSubtraction:
         
         return batch_data
 
-    def visualize_peaks(self, input: str | torch.Tensor, data:pd.DataFrame):
+    def visualize_peaks(self, input, data:pd.DataFrame):
         if isinstance(input, str):
             loaded_image, _ = load_h5(file_path=input)
         elif isinstance(input, torch.Tensor):
