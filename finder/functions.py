@@ -13,6 +13,10 @@ def load_h5(file_path:str) -> tuple:
         data = file['entry/data/data'][:]
     return data, file_path
 
+def apply_waterbackground(peak_image:np.ndarray, background:np.ndarray) -> np.ndarray:
+    """Apply water background subtraction to the image."""
+    return peak_image + background
+
 def find_dir(base_path:str, dir_name:str) -> Path:
     for path in base_path.rglob('*'):
         if path.name == dir_name and path.is_dir():

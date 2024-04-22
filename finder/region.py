@@ -27,12 +27,8 @@ class ArrayRegion:
         return region
 
     def extract_region(self, x_center:int, y_center:int, region_size:int) -> np.array:
-        self.set_peak_coordinate(x_center, y_center)
-        self.set_region_size(region_size)
-        region = self.get_region()
-        # Set print options for better readability
-        np.set_printoptions(precision=8, suppress=True, linewidth=120, edgeitems=7)
-        return region
+        half_size = region_size // 2
+        return self.array[x_center-half_size:x_center+half_size+1, y_center-half_size:y_center+half_size+1]
                 
     def get_exclusion_mask(self) -> np.array:
         mask = np.ones(self.array.shape, dtype=bool)

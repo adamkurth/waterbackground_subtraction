@@ -9,10 +9,9 @@ class PeakThresholdProcessor:
     def set_threshold_value(self, new):
         self.threshold_value = new
     
-    def get_coordinates_above_threshold(self):  
-        coordinates = np.argwhere(self.image > self.threshold_value)
-        return coordinates
-    
+    def get_coordinates_above_threshold(self):
+        return np.argwhere(self.image > self.threshold_value)
+        
     def get_local_maxima(self):
         image_1d = self.image.flatten()
         peaks, _ = find_peaks(image_1d, height=self.threshold_value)
